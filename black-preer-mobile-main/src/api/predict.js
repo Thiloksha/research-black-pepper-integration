@@ -7,17 +7,16 @@ export async function predictImage(uri) {
   if (Platform.OS === "web") {
     const response = await fetch(uri);
     const blob = await response.blob();
-    formData.append("file", blob, "image.jpg");
+    formData.append("image", blob, "image.jpg");  
   } else {
-    formData.append("file", {
+    formData.append("image", {                     
       uri,
       name: "image.jpg",
       type: "image/jpeg",
-    } );
+    });
   }
 
-//   const res = await fetch(`${API_BASE}/predict`
-  const res = await fetch(`${API_BASE}/api/variety/predict`, {
+  const res = await fetch(`${API_BASE}/api/variety-predict`, { 
     method: "POST",
     body: formData,
   });
@@ -28,5 +27,21 @@ export async function predictImage(uri) {
     throw new Error(txt);
   }
 
-  return res.json();
+  const data = await res.json();
+
+  // Map backend response to what VarietyIdentifyScreen expects
+  return {
+    result: data.prediction?.label ?? "Unknown",
+    confidence: data.prediction?.confidence ?? 0,
+    stage: data.stageA?.label ?? "unknown",
+    message: data.message ?? "",
+    variety_probs: data.probabilities ?? {},
+    stageA_probs: data.stageA
+      ? {
+          [data.stageA.label]: data.stageA.confidence,
+        }
+      : {},
+    stageA_warning: data.stageA_warning ?? null,
+    accepted: data.accepted,
+  };
 }
