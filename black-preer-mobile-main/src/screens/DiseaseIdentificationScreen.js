@@ -18,48 +18,6 @@ export default function DiseaseIdentificationScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* How It Works Section */}
-        <View style={styles.howItWorksSection}>
-            <Text style={styles.sectionTitle}>How It Works</Text>
-            <Text style={styles.sectionSubtitle}>
-            Follow these simple steps to identify black pepper leaf diseases
-            </Text>
-
-            <View style={styles.howItWorksGrid}>
-            <View style={styles.howCard}>
-                <Text style={styles.howCardEmoji}>📸</Text>
-                <Text style={styles.howCardTitle}>Capture Leaf Image</Text>
-                <Text style={styles.howCardDescription}>
-                Take a clear photo of the black pepper leaf
-                </Text>
-            </View>
-
-            <View style={styles.howCard}>
-                <Text style={styles.howCardEmoji}>🧠</Text>
-                <Text style={styles.howCardTitle}>AI Disease Analysis</Text>
-                <Text style={styles.howCardDescription}>
-                The model analyzes symptoms, colors, and patterns
-                </Text>
-            </View>
-
-            <View style={styles.howCard}>
-                <Text style={styles.howCardEmoji}>📋</Text>
-                <Text style={styles.howCardTitle}>Get Prediction</Text>
-                <Text style={styles.howCardDescription}>
-                View disease type and confidence score
-                </Text>
-            </View>
-
-            <View style={styles.howCard}>
-                <Text style={styles.howCardEmoji}>🌱</Text>
-                <Text style={styles.howCardTitle}>Take Action</Text>
-                <Text style={styles.howCardDescription}>
-                Use the result for better treatment decisions
-                </Text>
-            </View>
-            </View>
-        </View>
-
       {/* Hero Section */}
       <LinearGradient
         colors={['#1a3409', '#2d5016', '#1a3409']}
@@ -69,6 +27,7 @@ export default function DiseaseIdentificationScreen({ navigation }) {
           <Text style={styles.heroTitle}>
             AI-Powered Black Pepper Leaf{'\n'}Disease Identification
           </Text>
+
           <Text style={styles.heroSubtitle}>
             Detect diseases in black pepper leaves using computer vision and deep
             learning. Upload a leaf image and receive fast, intelligent predictions
@@ -86,6 +45,48 @@ export default function DiseaseIdentificationScreen({ navigation }) {
           </View>
         </View>
       </LinearGradient>
+
+      {/* How It Works Section */}
+      <View style={styles.howItWorksSection}>
+        <Text style={styles.sectionTitle}>How It Works</Text>
+        <Text style={styles.sectionSubtitle}>
+          Follow these simple steps to identify black pepper leaf diseases
+        </Text>
+
+        <View style={styles.howItWorksGrid}>
+          <View style={styles.howCard}>
+            <Text style={styles.howCardEmoji}>📸</Text>
+            <Text style={styles.howCardTitle}>Capture Leaf Image</Text>
+            <Text style={styles.howCardDescription}>
+              Take a clear photo of the black pepper leaf
+            </Text>
+          </View>
+
+          <View style={styles.howCard}>
+            <Text style={styles.howCardEmoji}>🧠</Text>
+            <Text style={styles.howCardTitle}>AI Disease Analysis</Text>
+            <Text style={styles.howCardDescription}>
+              The model analyzes symptoms, colors, and patterns
+            </Text>
+          </View>
+
+          <View style={styles.howCard}>
+            <Text style={styles.howCardEmoji}>📋</Text>
+            <Text style={styles.howCardTitle}>Get Prediction</Text>
+            <Text style={styles.howCardDescription}>
+              View disease type and confidence score
+            </Text>
+          </View>
+
+          <View style={styles.howCard}>
+            <Text style={styles.howCardEmoji}>🌱</Text>
+            <Text style={styles.howCardTitle}>Take Action</Text>
+            <Text style={styles.howCardDescription}>
+              Use the result for better treatment decisions
+            </Text>
+          </View>
+        </View>
+      </View>
 
       {/* Statistics Section */}
       {/* <View style={styles.statisticsSection}>
@@ -118,7 +119,7 @@ export default function DiseaseIdentificationScreen({ navigation }) {
       </View> */}
 
       {/* CTA Section */}
-      {/* <LinearGradient
+      <LinearGradient
         colors={['#3d6b1f', '#1a3409']}
         style={styles.ctaSection}
       >
@@ -135,7 +136,7 @@ export default function DiseaseIdentificationScreen({ navigation }) {
         >
           <Text style={styles.ctaButtonText}>Detect Disease Now →</Text>
         </TouchableOpacity>
-      </LinearGradient> */}
+      </LinearGradient>
     </ScrollView>
   );
 }
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
 
   statisticsSection: {
     padding: 20,
-    backgroundColor: '#e8f5e9',
+    backgroundColor: '#dcefdc',
   },
 
   statsContainer: {
