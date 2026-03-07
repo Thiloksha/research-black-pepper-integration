@@ -7,6 +7,10 @@ import AnalysisScreen from '../screens/AnalysisScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import VarietyHubScreen from '../screens/VarietyHubScreen';
+import VarietyIdentifyScreen from '../screens/VarietyIdentifyScreen';
+import VarietyInfoScreen from '../screens/VarietyInfoScreen';
+import VarietyHistoryScreen from '../screens/VarietyHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -55,8 +59,27 @@ export default function AppNavigator() {
           component={DashboardScreen}
           options={{ title: 'Regional Dashboard' }}
         />
+        <Stack.Screen
+          name="VarietyHub"
+          component={VarietyHubScreen}
+          options={{ title: 'Pepper Variety Module' }}
+        />
+        <Stack.Screen
+          name="VarietyIdentify"
+          component={VarietyIdentifyScreen}
+          options={{ title: 'Identify Variety' }}
+        />
+        <Stack.Screen
+          name="VarietyInfo"
+          component={VarietyInfoScreen}
+          options={{ title: 'Variety Info' }}
+        />
+        <Stack.Screen
+          name="VarietyHistory"
+          component={VarietyHistoryScreen}
+          options={{ title: 'History' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
-
