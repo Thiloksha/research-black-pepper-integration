@@ -7,6 +7,9 @@ import AnalysisScreen from '../screens/AnalysisScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
+import DiseaseUploadScreen from '../screens/DiseaseUploadScreen';
+import DiseaseResultScreen from '../screens/DiseaseResultScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -55,8 +58,22 @@ export default function AppNavigator() {
           component={DashboardScreen}
           options={{ title: 'Regional Dashboard' }}
         />
+        <Stack.Screen
+          name="DiseaseIdentification"
+          component={DiseaseIdentificationScreen}
+          options={{ title: 'Leaf Disease Detection' }}
+        />
+        <Stack.Screen
+          name="DiseaseUpload"
+          component={DiseaseUploadScreen}
+          options={{ title: 'Leaf Image Upload' }}
+        />
+        <Stack.Screen
+          name="DiseaseResult"
+          component={DiseaseResultScreen}
+          options={{ title: 'Detection Result' }}
+        /> 
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
-
