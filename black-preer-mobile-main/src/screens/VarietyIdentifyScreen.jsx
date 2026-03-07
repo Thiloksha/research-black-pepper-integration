@@ -8,17 +8,24 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { predictImage } from '../api/predict';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function VarietyIdentifyScreen() {
   const [imageUri, setImageUri] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 768;
+  const isLargeScreen = width >= 1024;
 
   const pickImage = async () => {
     try {
@@ -117,104 +124,304 @@ export default function VarietyIdentifyScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#e8f5e9', '#c8e6c9']} style={styles.gradient}>
-        <View style={styles.content}>
-          <Text style={styles.title}>🍃 Black Pepper Leaf Identification</Text>
-          <Text style={styles.subtitle}>
-            Upload a leaf image to identify the black pepper variety
-          </Text>
-
-          <View style={styles.inputSection}>
-            <Text style={styles.sectionTitle}>📸 Leaf Image</Text>
-
-            <View style={styles.imageButtons}>
-              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-                <Text style={styles.imageButtonText}>Choose from Gallery</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
-                <Text style={styles.imageButtonText}>Take Photo</Text>
-              </TouchableOpacity>
+      <LinearGradient
+        colors={['#dbeadf', '#c7ddce', '#b4cfbc']}
+        style={styles.gradient}
+      >
+        <View style={styles.page}>
+          <View style={styles.heroSection}>
+            <View style={styles.heroBadge}>
+              <Ionicons name="leaf-outline" size={18} color="#1f6f43" />
+              <Text style={styles.heroBadgeText}>AI Variety Detection</Text>
             </View>
 
-            {imageUri && (
-              <Image source={{ uri: imageUri }} style={styles.previewImage} />
-            )}
+            <View style={styles.heroIconCircle}>
+              <Ionicons name="leaf-outline" size={34} color="#1c5636" />
+            </View>
 
-            <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handlePredict}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Identify Variety</Text>
-              )}
-            </TouchableOpacity>
+            <Text style={styles.title}>Black Pepper Leaf Identification</Text>
 
-            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-              <Text style={styles.resetButtonText}>Reset</Text>
-            </TouchableOpacity>
-
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            <Text style={styles.subtitle}>
+              Upload or capture a leaf image to identify the black pepper variety
+              using your trained classification model.
+            </Text>
           </View>
 
-          <View style={styles.resultsSection}>
-            <Text style={styles.sectionTitle}>📊 Prediction Result</Text>
-
-            {!result && !loading && (
-              <View style={styles.emptyResults}>
-                <Text style={styles.emptyResultsEmoji}>🌿</Text>
-                <Text style={styles.emptyResultsText}>
-                  Select an image and tap "Identify Variety"
-                </Text>
-              </View>
-            )}
-
-            {loading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2d5016" />
-                <Text style={styles.loadingText}>Processing image...</Text>
-              </View>
-            )}
-
-            {result && (
-              <View style={styles.resultCard}>
-                <Text style={styles.resultCardTitle}>Prediction</Text>
-                <Text style={styles.resultMain}>{result.result}</Text>
-                <Text style={styles.resultText}>Confidence: {result.confidence}%</Text>
-                <Text style={styles.resultText}>Stage: {result.stage}</Text>
-
-                {result.variety_probs && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={styles.resultCardTitle}>Variety Probabilities</Text>
-                    {Object.entries(result.variety_probs).map(([key, value]) => (
-                      <Text key={key} style={styles.resultText}>
-                        {key}: {value}%
-                      </Text>
-                    ))}
+          <View
+            style={[
+              styles.contentWrapper,
+              isLargeScreen && styles.contentWrapperLarge,
+            ]}
+          >
+            <View style={[styles.card, isLargeScreen && styles.leftCard]}>
+              <View style={styles.cardHeader}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIconWrap}>
+                    <Ionicons name="camera-outline" size={18} color="#1f6f43" />
                   </View>
-                )}
-
-                {result.stageA_probs && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={styles.resultCardTitle}>Stage A Probabilities</Text>
-                    {Object.entries(result.stageA_probs).map(([key, value]) => (
-                      <Text key={key} style={styles.resultText}>
-                        {key}: {value}%
-                      </Text>
-                    ))}
+                  <View>
+                    <Text style={styles.sectionTitle}>Leaf Image Input</Text>
+                    <Text style={styles.sectionSubtitle}>
+                      Choose a source and prepare the image for analysis
+                    </Text>
                   </View>
-                )}
-
-                <Text style={styles.resultDescription}>{result.message}</Text>
+                </View>
               </View>
-            )}
+
+              <View
+                style={[
+                  styles.imageButtons,
+                  !isSmallScreen && styles.imageButtonsRow,
+                ]}
+              >
+                <TouchableOpacity
+                  style={styles.imageOptionCard}
+                  onPress={pickImage}
+                  activeOpacity={0.9}
+                >
+                  <View style={[styles.iconBox, styles.galleryIconBox]}>
+                    <Ionicons name="images-outline" size={30} color="#2563eb" />
+                  </View>
+                  <Text style={styles.imageOptionTitle}>Gallery</Text>
+                  <Text style={styles.imageOptionText}>
+                    Select a stored image from your device
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.imageOptionCard}
+                  onPress={takePhoto}
+                  activeOpacity={0.9}
+                >
+                  <View style={[styles.iconBox, styles.cameraIconBox]}>
+                    <Ionicons name="camera-outline" size={30} color="#1f6f43" />
+                  </View>
+                  <Text style={styles.imageOptionTitle}>Camera</Text>
+                  <Text style={styles.imageOptionText}>
+                    Capture a clear leaf image instantly
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {imageUri ? (
+                <View style={styles.previewWrapper}>
+                  <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                  <View style={styles.previewOverlay}>
+                    <View style={styles.previewChip}>
+                      <Ionicons name="image-outline" size={14} color="#fff" />
+                      <Text style={styles.previewChipText}>Selected Image</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.emptyPreview}>
+                  <View style={styles.emptyPreviewIconWrap}>
+                    <Ionicons name="image-outline" size={34} color="#7b9485" />
+                  </View>
+                  <Text style={styles.emptyPreviewTitle}>No image selected</Text>
+                  <Text style={styles.emptyPreviewText}>
+                    Choose an image from the gallery or capture one using the
+                    camera.
+                  </Text>
+                </View>
+              )}
+
+              <View
+                style={[
+                  styles.actionButtons,
+                  !isSmallScreen && styles.actionButtonsRow,
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    loading && styles.primaryButtonDisabled,
+                  ]}
+                  onPress={handlePredict}
+                  disabled={loading}
+                  activeOpacity={0.92}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="sparkles-outline"
+                        size={18}
+                        color="#fff"
+                        style={styles.buttonIcon}
+                      />
+                      <Text style={styles.primaryButtonText}>Identify Variety</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleReset}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons
+                    name="refresh-outline"
+                    size={18}
+                    color="#355f46"
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.secondaryButtonText}>Reset</Text>
+                </TouchableOpacity>
+              </View>
+
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={18}
+                    color="#b42318"
+                    style={styles.errorIcon}
+                  />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.card, isLargeScreen && styles.rightCard]}>
+              <View style={styles.cardHeader}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIconWrap}>
+                    <Ionicons
+                      name="analytics-outline"
+                      size={18}
+                      color="#1f6f43"
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.sectionTitle}>Prediction Result</Text>
+                    <Text style={styles.sectionSubtitle}>
+                      Model output, confidence, and classification details
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {!result && !loading && (
+                <View style={styles.emptyResults}>
+                  <View style={styles.emptyResultsIconWrap}>
+                    <Ionicons
+                      name="bar-chart-outline"
+                      size={36}
+                      color="#5f806e"
+                    />
+                  </View>
+                  <Text style={styles.emptyResultsTitle}>No prediction yet</Text>
+                  <Text style={styles.emptyResultsText}>
+                    Run the model after selecting an image to view the predicted
+                    variety and confidence values.
+                  </Text>
+                </View>
+              )}
+
+              {loading && (
+                <View style={styles.loadingContainer}>
+                  <View style={styles.loadingIconCircle}>
+                    <ActivityIndicator size="large" color="#1f6f43" />
+                  </View>
+                  <Text style={styles.loadingText}>Processing image...</Text>
+                  <Text style={styles.loadingSubText}>
+                    Running leaf classification and confidence scoring
+                  </Text>
+                </View>
+              )}
+
+              {result && (
+                <View style={styles.resultCard}>
+                  <View style={styles.resultTopRow}>
+                    <View style={styles.resultBadge}>
+                      <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                      <Text style={styles.resultBadgeText}>Prediction Ready</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.resultLabel}>Detected Variety</Text>
+                  <Text style={styles.resultMain}>{result.result}</Text>
+
+                  <View style={styles.metricsGrid}>
+                    <View style={styles.metricBox}>
+                      <Text style={styles.metricTitle}>Confidence</Text>
+                      <Text style={styles.metricValue}>{result.confidence}%</Text>
+                    </View>
+
+                    <View style={styles.metricBox}>
+                      <Text style={styles.metricTitle}>Stage</Text>
+                      <Text style={styles.metricValue}>{result.stage}</Text>
+                    </View>
+                  </View>
+
+                  {result.confidence !== undefined && (
+                    <View style={styles.confidenceSection}>
+                      <View style={styles.confidenceHeader}>
+                        <Text style={styles.confidenceLabel}>Confidence Level</Text>
+                        <Text style={styles.confidencePercent}>
+                          {result.confidence}%
+                        </Text>
+                      </View>
+                      <View style={styles.progressTrack}>
+                        <View
+                          style={[
+                            styles.progressBar,
+                            {
+                              width: `${Math.max(
+                                0,
+                                Math.min(Number(result.confidence) || 0, 100)
+                              )}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  {result.variety_probs && (
+                    <View style={styles.infoSection}>
+                      <Text style={styles.infoSectionTitle}>
+                        Variety Probabilities
+                      </Text>
+                      {Object.entries(result.variety_probs).map(([key, value]) => (
+                        <View key={key} style={styles.infoRow}>
+                          <Text style={styles.infoKey}>{key}</Text>
+                          <Text style={styles.infoValue}>{value}%</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {result.stageA_probs && (
+                    <View style={styles.infoSection}>
+                      <Text style={styles.infoSectionTitle}>
+                        Stage A Probabilities
+                      </Text>
+                      {Object.entries(result.stageA_probs).map(([key, value]) => (
+                        <View key={key} style={styles.infoRow}>
+                          <Text style={styles.infoKey}>{key}</Text>
+                          <Text style={styles.infoValue}>{value}%</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {!!result.message && (
+                    <View style={styles.messageBox}>
+                      <Ionicons
+                        name="information-circle-outline"
+                        size={18}
+                        color="#215c3a"
+                        style={styles.infoMessageIcon}
+                      />
+                      <Text style={styles.resultDescription}>{result.message}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </LinearGradient>
@@ -222,151 +429,520 @@ export default function VarietyIdentifyScreen() {
   );
 }
 
+const shadowStyle = Platform.select({
+  ios: {
+    shadowColor: '#10231a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 22,
+  },
+  android: {
+    elevation: 5,
+  },
+  web: {
+    boxShadow: '0px 12px 28px rgba(16, 35, 26, 0.08)',
+  },
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gradient: { flex: 1, paddingTop: 20, paddingBottom: 40 },
-  content: { paddingHorizontal: 20 },
-  title: {
-    fontSize: 24,
+  container: {
+    flex: 1,
+    backgroundColor: '#dbeadf',
+  },
+  gradient: {
+    flex: 1,
+    minHeight: '100%',
+  },
+  page: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 16,
+  },
+  heroSection: {
+    width: '100%',
+    maxWidth: 1180,
+    alignItems: 'center',
+    marginBottom: 28,
+    paddingHorizontal: 8,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#edf8f0',
+    borderWidth: 1,
+    borderColor: '#d8ebdd',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginBottom: 16,
+  },
+  heroBadgeText: {
+    marginLeft: 8,
+    color: '#1f6f43',
+    fontSize: 13,
     fontWeight: '700',
-    color: '#2d5016',
+  },
+  heroIconCircle: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#e6f1e9',
+    ...shadowStyle,
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#143b27',
     textAlign: 'center',
     marginBottom: 10,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: '#5b7666',
     textAlign: 'center',
-    marginBottom: 30,
+    lineHeight: 24,
+    maxWidth: 760,
   },
-  inputSection: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    elevation: 3,
+  contentWrapper: {
+    width: '100%',
+    maxWidth: 1180,
   },
-  resultsSection: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    minHeight: 300,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2d5016',
-    marginBottom: 20,
-  },
-  imageButtons: {
+  contentWrapperLarge: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 15,
+    alignItems: 'flex-start',
+    gap: 20,
   },
-  imageButton: {
-    flex: 1,
-    backgroundColor: '#2d5016',
-    padding: 12,
-    borderRadius: 10,
+  leftCard: {
+    flex: 1.02,
+  },
+  rightCard: {
+    flex: 0.98,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eaf3ed',
+    ...shadowStyle,
+  },
+  cardHeader: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  imageButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+  sectionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#eef8f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#163a28',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13.5,
+    color: '#6f8578',
+    lineHeight: 20,
+  },
+  imageButtons: {
+    gap: 14,
+    marginBottom: 22,
+  },
+  imageButtonsRow: {
+    flexDirection: 'row',
+  },
+  imageOptionCard: {
+    flex: 1,
+    backgroundColor: '#fbfdfb',
+    borderWidth: 1,
+    borderColor: '#e5efe8',
+    borderRadius: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 158,
+  },
+  iconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  galleryIconBox: {
+    backgroundColor: '#eaf1ff',
+  },
+  cameraIconBox: {
+    backgroundColor: '#e9f7ee',
+  },
+  imageOptionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#173725',
+    marginBottom: 6,
+  },
+  imageOptionText: {
+    fontSize: 13,
+    color: '#71867a',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 200,
+  },
+  previewWrapper: {
+    position: 'relative',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5efe8',
+    backgroundColor: '#f7faf8',
+    marginBottom: 20,
   },
   previewImage: {
     width: '100%',
-    height: 220,
-    borderRadius: 10,
-    marginBottom: 15,
+    height: Platform.OS === 'web' ? 360 : 300,
+    resizeMode: 'cover',
   },
-  submitButton: {
-    backgroundColor: '#2d5016',
-    padding: 15,
-    borderRadius: 10,
+  previewOverlay: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+  },
+  previewChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    backgroundColor: 'rgba(20, 59, 39, 0.82)',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
+  previewChipText: {
     color: '#fff',
-    fontSize: 16,
+    marginLeft: 6,
+    fontSize: 12,
     fontWeight: '700',
   },
-  resetButton: {
-    padding: 15,
+  emptyPreview: {
+    minHeight: 260,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#dceadf',
+    borderStyle: 'dashed',
+    backgroundColor: '#f9fcfa',
+    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
+    marginBottom: 20,
+    paddingHorizontal: 24,
   },
-  resetButtonText: {
-    color: '#666',
+  emptyPreviewIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    backgroundColor: '#eef6f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  emptyPreviewTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1c3f2b',
+    marginBottom: 8,
+  },
+  emptyPreviewText: {
+    fontSize: 14,
+    color: '#7a9084',
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 340,
+  },
+  actionButtons: {
+    gap: 12,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#1f6f43',
+    minHeight: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 18,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
     fontSize: 16,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#f5f9f6',
+    minHeight: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#d9e7dc',
+  },
+  secondaryButtonText: {
+    color: '#355f46',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   errorContainer: {
-    backgroundColor: '#fee',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
+    marginTop: 14,
+    backgroundColor: '#fef3f2',
+    borderWidth: 1,
+    borderColor: '#fecdca',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorIcon: {
+    marginRight: 8,
   },
   errorText: {
-    color: '#c00',
+    flex: 1,
+    color: '#b42318',
     fontSize: 14,
+    lineHeight: 20,
   },
   emptyResults: {
     alignItems: 'center',
-    padding: 40,
+    justifyContent: 'center',
+    paddingVertical: 56,
+    paddingHorizontal: 20,
+    minHeight: 420,
   },
-  emptyResultsEmoji: {
-    fontSize: 60,
-    marginBottom: 15,
+  emptyResultsIconWrap: {
+    width: 78,
+    height: 78,
+    borderRadius: 24,
+    backgroundColor: '#eef7f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyResultsTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1c3f2b',
+    marginBottom: 8,
   },
   emptyResultsText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 14,
+    color: '#73877c',
     textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 420,
   },
   loadingContainer: {
     alignItems: 'center',
-    padding: 40,
+    justifyContent: 'center',
+    minHeight: 420,
+    paddingVertical: 42,
+    paddingHorizontal: 20,
+  },
+  loadingIconCircle: {
+    width: 82,
+    height: 82,
+    borderRadius: 24,
+    backgroundColor: '#eef7f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
   },
   loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#2d5016',
+    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1f6f43',
+  },
+  loadingSubText: {
+    marginTop: 8,
+    fontSize: 13.5,
+    color: '#6f8478',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 320,
   },
   resultCard: {
-    padding: 15,
-    borderRadius: 10,
-    backgroundColor: '#e8f5e9',
-    borderLeftWidth: 4,
-    borderLeftColor: '#4caf50',
+    backgroundColor: '#fbfdfb',
+    borderWidth: 1,
+    borderColor: '#e6efe8',
+    borderRadius: 20,
+    padding: 20,
   },
-  resultCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2d5016',
-    marginBottom: 10,
+  resultTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: 16,
+  },
+  resultBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2e7d4f',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  resultBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  resultLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#708579',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
   },
   resultMain: {
-    fontSize: 26,
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#174a2f',
+    marginBottom: 18,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 18,
+    flexWrap: 'wrap',
+  },
+  metricBox: {
+    flex: 1,
+    minWidth: 140,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#e6efe8',
+  },
+  metricTitle: {
+    fontSize: 13,
+    color: '#6d8277',
+    marginBottom: 6,
     fontWeight: '700',
-    color: '#4caf50',
+  },
+  metricValue: {
+    fontSize: 18,
+    color: '#174a2f',
+    fontWeight: '800',
+  },
+  confidenceSection: {
+    marginBottom: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e6efe8',
+    borderRadius: 16,
+    padding: 14,
+  },
+  confidenceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 10,
   },
-  resultText: {
+  confidenceLabel: {
     fontSize: 14,
-    color: '#444',
-    marginBottom: 5,
+    fontWeight: '700',
+    color: '#375845',
+  },
+  confidencePercent: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1f6f43',
+  },
+  progressTrack: {
+    height: 10,
+    backgroundColor: '#e8efe9',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#2e7d4f',
+    borderRadius: 999,
+  },
+  infoSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#e7efe9',
+    marginBottom: 14,
+  },
+  infoSectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1f3e2c',
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f2',
+  },
+  infoKey: {
+    fontSize: 14,
+    color: '#4f6659',
+    flex: 1,
+    paddingRight: 10,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1f6f43',
+  },
+  messageBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#edf8f0',
+    padding: 14,
+    borderRadius: 16,
+    marginTop: 4,
+  },
+  infoMessageIcon: {
+    marginRight: 8,
+    marginTop: 1,
   },
   resultDescription: {
+    flex: 1,
     fontSize: 14,
-    color: '#666',
-    marginTop: 15,
-    lineHeight: 20,
+    color: '#215c3a',
+    lineHeight: 22,
   },
 });
