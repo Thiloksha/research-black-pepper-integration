@@ -22,12 +22,17 @@ LEAF_DETECTOR_PATH = os.path.join(MODEL_DIR, "leaf_detector.keras")
 IMG_SIZE = (224, 224)
 MODEL_NAME = "EfficientNetB0"
 
-# Based on your detector training notebook:
 # score close to 1.0 = pepper leaf
 PEPPER_IDX = 1
-LEAF_THRESHOLD = 0.5
 
-# Must match disease training order exactly
+# leaf detector threshold
+LEAF_THRESHOLD = 0.55
+
+# disease thresholds
+DISEASE_THRESHOLD = 55.0
+LOW_CONFIDENCE_THRESHOLD = 40.0
+
+# must match training order exactly
 CLASS_NAMES = ["healthy", "leaf_blight", "slow_wilt"]
 
 DISPLAY_NAMES = {
@@ -76,21 +81,27 @@ def load_image(image_path: str) -> np.ndarray:
         return img_array
 
 
+def build_probabilities(preds: np.ndarray) -> dict:
+    return {
+        DISPLAY_NAMES.get(CLASS_NAMES[i], CLASS_NAMES[i]): round(float(preds[i]) * 100, 2)
+        for i in range(len(CLASS_NAMES))
+    }
+
+
 def predict_image(image_path: str) -> dict:
     if disease_model is None or leaf_detector is None:
         raise RuntimeError("Models are not loaded.")
 
     img_array = load_image(image_path)
 
-    # Detector model already contains preprocess_input inside the model
+    # Stage 1: pepper leaf detector
     raw_score = float(leaf_detector.predict(img_array, verbose=0)[0][0])
-
-    # PEPPER_IDX = 1 means score itself is pepper probability
     pepper_score = raw_score if PEPPER_IDX == 1 else (1.0 - raw_score)
 
     if pepper_score < LEAF_THRESHOLD:
         return {
             "rejected": True,
+            "low_confidence": False,
             "reject_reason": f"Not a black pepper leaf (score: {pepper_score * 100:.1f}%).",
             "prediction": None,
             "confidence": round(pepper_score * 100, 2),
@@ -99,37 +110,83 @@ def predict_image(image_path: str) -> dict:
             "all_probabilities": {},
             "model_name": "leaf_detector",
             "description": None,
-            "advice": None
+            "advice": "Please upload a clear black pepper leaf image with good lighting and a simple background."
         }
 
-    # Disease model also already contains preprocess_input inside the model
+    # Stage 2: disease classifier
     preds = disease_model.predict(img_array, verbose=0)[0]
-
     pred_idx = int(np.argmax(preds))
     pred_label = CLASS_NAMES[pred_idx]
     conf_pct = float(preds[pred_idx]) * 100
 
-    all_probs = {
-        DISPLAY_NAMES.get(CLASS_NAMES[i], CLASS_NAMES[i]): round(float(preds[i]) * 100, 2)
-        for i in range(len(CLASS_NAMES))
-    }
+    all_probs = build_probabilities(preds)
 
-    info = DISEASE_INFO.get(pred_label, {
-        "description": "Unknown prediction.",
-        "advice": "Consult an agricultural expert."
-    })
+    # high-confidence normal result
+    if conf_pct >= DISEASE_THRESHOLD:
+        info = DISEASE_INFO.get(pred_label, {
+            "description": "Unknown prediction.",
+            "advice": "Consult an agricultural expert."
+        })
 
+        return {
+            "rejected": False,
+            "low_confidence": False,
+            "reject_reason": None,
+            "prediction": DISPLAY_NAMES.get(pred_label, pred_label),
+            "confidence": round(conf_pct, 2),
+            "raw_detector_score": round(raw_score * 100, 2),
+            "pepper_score": round(pepper_score * 100, 2),
+            "all_probabilities": all_probs,
+            "model_name": MODEL_NAME,
+            "description": info["description"],
+            "advice": info["advice"]
+        }
+
+    # medium-confidence result -> possible early / mild infection
+    if conf_pct >= LOW_CONFIDENCE_THRESHOLD:
+        if pred_label == "healthy":
+            return {
+                "rejected": False,
+                "low_confidence": True,
+                "reject_reason": None,
+                "prediction": "Possibly Healthy",
+                "confidence": round(conf_pct, 2),
+                "raw_detector_score": round(raw_score * 100, 2),
+                "pepper_score": round(pepper_score * 100, 2),
+                "all_probabilities": all_probs,
+                "model_name": MODEL_NAME,
+                "description": "The leaf appears mostly healthy, but the model confidence is low.",
+                "advice": "Monitor the leaf over time and upload a clearer close-up image if symptoms increase."
+            }
+
+        possible_label = DISPLAY_NAMES.get(pred_label, pred_label)
+        return {
+            "rejected": False,
+            "low_confidence": True,
+            "reject_reason": None,
+            "prediction": f"Possible Early {possible_label}",
+            "confidence": round(conf_pct, 2),
+            "raw_detector_score": round(raw_score * 100, 2),
+            "pepper_score": round(pepper_score * 100, 2),
+            "all_probabilities": all_probs,
+            "model_name": MODEL_NAME,
+            "description": f"The leaf may show early signs of {possible_label}, but the confidence is low.",
+            "advice": "This may be a mild or early-stage infection. Capture a closer image in good lighting and monitor symptom progression."
+        }
+
+    # very uncertain result -> reject as unclear
     return {
-        "rejected": False,
-        "reject_reason": None,
-        "prediction": DISPLAY_NAMES.get(pred_label, pred_label),
+        "rejected": True,
+        "low_confidence": False,
+        "reject_reason": f"Image is unclear or not reliable for disease detection (top disease confidence: {conf_pct:.1f}%).",
+        "prediction": None,
         "confidence": round(conf_pct, 2),
         "raw_detector_score": round(raw_score * 100, 2),
         "pepper_score": round(pepper_score * 100, 2),
         "all_probabilities": all_probs,
         "model_name": MODEL_NAME,
-        "description": info["description"],
-        "advice": info["advice"]
+        "description": None,
+        "advice": "Please upload a clearer black pepper leaf image with good lighting and a simple background."
     }
 
 

@@ -12,7 +12,15 @@ import { LinearGradient } from "expo-linear-gradient";
 
 export default function DiseaseResultScreen({ route, navigation }) {
 
-  const { image, disease, confidence, treatment } = route.params;
+  const {
+    image,
+    disease,
+    confidence,
+    treatment,
+    description,
+    probabilities,
+    lowConfidence
+  } = route.params;
 
   const handleSave = () => {
     Alert.alert("Saved", "Result saved successfully!");
@@ -34,19 +42,54 @@ export default function DiseaseResultScreen({ route, navigation }) {
 
       <View style={styles.content}>
 
+        {/* Leaf Image */}
         <Image source={{ uri: image }} style={styles.image} />
 
+        {/* Low Confidence Warning */}
+        {lowConfidence && (
+          <View style={styles.warningCard}>
+            <Text style={styles.warningTitle}>⚠ Low Confidence Detection</Text>
+            <Text style={styles.warningText}>
+              This result may indicate an early or mild infection. The AI model
+              confidence is lower than normal. Monitor the plant and capture a
+              clearer close-up image for more accurate detection.
+            </Text>
+          </View>
+        )}
+
+        {/* Result Card */}
         <View style={styles.resultCard}>
+
           <Text style={styles.resultTitle}>Detected Disease</Text>
           <Text style={styles.resultValue}>{disease}</Text>
 
           <Text style={styles.label}>Confidence</Text>
           <Text style={styles.value}>{confidence}</Text>
 
+          <Text style={styles.label}>Description</Text>
+          <Text style={styles.value}>{description}</Text>
+
           <Text style={styles.label}>Treatment Recommendation</Text>
           <Text style={styles.value}>{treatment}</Text>
+
         </View>
 
+        {/* All probabilities */}
+        {probabilities && Object.keys(probabilities).length > 0 && (
+          <View style={styles.probCard}>
+            <Text style={styles.probTitle}>All Predictions</Text>
+
+            {Object.entries(probabilities).map(([key, value]) => (
+              <View key={key} style={styles.probRow}>
+                <Text style={styles.probDisease}>{key}</Text>
+                <Text style={styles.probValue}>{value}%</Text>
+              </View>
+            ))}
+
+          </View>
+        )}
+
+        {/* Buttons */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.buttonText}>💾 Save Result</Text>
         </TouchableOpacity>
@@ -91,6 +134,29 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
 
+  /* Warning banner */
+  warningCard: {
+    backgroundColor: "#fff3cd",
+    borderColor: "#ffe08a",
+    borderWidth: 1,
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20
+  },
+
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#856404",
+    marginBottom: 6
+  },
+
+  warningText: {
+    fontSize: 14,
+    color: "#856404",
+    lineHeight: 20
+  },
+
   resultCard: {
     backgroundColor: "#f1f8e9",
     padding: 20,
@@ -122,6 +188,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#444",
     marginTop: 4
+  },
+
+  probCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#dceccf"
+  },
+
+  probTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+    color: "#2d5016"
+  },
+
+  probRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6
+  },
+
+  probDisease: {
+    fontSize: 15,
+    color: "#333"
+  },
+
+  probValue: {
+    fontSize: 15,
+    fontWeight: "600"
   },
 
   saveButton: {

@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/\s+/g, '_');
+    const safeName = (file.originalname || 'image.jpg').replace(/\s+/g, '_');
     cb(null, `${Date.now()}-${safeName}`);
   },
 });
@@ -38,9 +38,16 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
+    console.log('Incoming file:', {
+      fieldname: file.fieldname,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+    });
+
     if (!file.mimetype || !file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed.'));
     }
+
     cb(null, true);
   },
 });
@@ -113,7 +120,9 @@ app.get('/api/soil-analysis', async (req, res) => {
       }
 
       try {
-        const aiResponse = JSON.parse(predictionResult);
+        const lines = predictionResult.trim().split('\n');
+        const lastLine = lines[lines.length - 1].trim();
+        const aiResponse = JSON.parse(lastLine);
 
         const finalPayload = {
           timestamp: latest.created_at,
@@ -134,72 +143,92 @@ app.get('/api/soil-analysis', async (req, res) => {
   }
 });
 
-app.post('/api/predict-image', upload.single('file'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        error: "No image uploaded. Use form-data with field name 'file'.",
+app.post(
+  '/api/predict-image',
+  (req, res, next) => {
+    console.log('==== IMAGE UPLOAD REQUEST RECEIVED ====');
+    next();
+  },
+  upload.single('file'),
+  (req, res) => {
+    try {
+      console.log('Uploaded file object:', req.file);
+      console.log('Request body:', req.body);
+
+      if (!req.file) {
+        return res.status(400).json({
+          error: "No image uploaded. Use form-data with field name 'file'.",
+        });
+      }
+
+      const imagePath = req.file.path;
+      const pythonScript = path.join(__dirname, 'predict_image.py');
+
+      console.log('Saved image path:', imagePath);
+      console.log('Python script path:', pythonScript);
+
+      const pythonProcess = spawn('python', [pythonScript, imagePath]);
+
+      let predictionResult = '';
+      let errorResult = '';
+
+      pythonProcess.stdout.on('data', (data) => {
+        predictionResult += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data) => {
+        errorResult += data.toString();
+        console.error(`Image Python stderr: ${data}`);
+      });
+
+      pythonProcess.on('close', (code) => {
+        console.log('Python process exit code:', code);
+
+        if (code !== 0) {
+          console.error(`predict_image.py exited with code ${code}`);
+          console.error('Python stdout:', predictionResult);
+          console.error('Python stderr:', errorResult);
+
+          return res.status(500).json({
+            error: 'Image prediction failed',
+            stdout: predictionResult,
+            stderr: errorResult,
+          });
+        }
+
+        try {
+          const lines = predictionResult.trim().split('\n');
+          const lastLine = lines[lines.length - 1].trim();
+          const aiResponse = JSON.parse(lastLine);
+
+          return res.json({
+            success: true,
+            image_name: req.file.filename,
+            ai_analysis: aiResponse,
+          });
+        } catch (parseError) {
+          console.error('Failed to parse Python output:', predictionResult);
+          return res.status(500).json({
+            error: 'Invalid image prediction format returned.',
+            raw_output: predictionResult,
+            stderr: errorResult,
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Server Error:', error.message);
+      return res.status(500).json({
+        error: 'Failed to process uploaded image.',
+        details: error.message,
       });
     }
-
-    const imagePath = req.file.path;
-    const pythonScript = path.join(__dirname, 'predict_image.py');
-
-    const pythonProcess = spawn('python', [pythonScript, imagePath]);
-
-    let predictionResult = '';
-    let errorResult = '';
-
-    pythonProcess.stdout.on('data', (data) => {
-      predictionResult += data.toString();
-    });
-
-    pythonProcess.stderr.on('data', (data) => {
-      errorResult += data.toString();
-      console.error(`Image Python stderr: ${data}`);
-    });
-
-    pythonProcess.on('close', (code) => {
-      if (code !== 0) {
-        console.error(`predict_image.py exited with code ${code}`);
-        console.error('Python stdout:', predictionResult);
-        console.error('Python stderr:', errorResult);
-
-        return res.status(500).json({
-          error: 'Image prediction failed',
-          stdout: predictionResult,
-          stderr: errorResult,
-        });
-      }
-
-      try {
-        const aiResponse = JSON.parse(predictionResult);
-
-        return res.json({
-          success: true,
-          image_name: req.file.filename,
-          ai_analysis: aiResponse,
-        });
-      } catch (parseError) {
-        console.error('Failed to parse Python output:', predictionResult);
-        return res.status(500).json({
-          error: 'Invalid image prediction format returned.',
-          raw_output: predictionResult,
-          stderr: errorResult,
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Server Error:', error.message);
-    return res.status(500).json({
-      error: 'Failed to process uploaded image.',
-      details: error.message,
-    });
   }
-});
+);
 
 // Multer Error Handler
 app.use((err, req, res, next) => {
+  console.error('Multer/Route error:', err);
+
   if (err instanceof multer.MulterError) {
     return res.status(400).json({
       error: 'Upload error',
@@ -216,7 +245,7 @@ app.use((err, req, res, next) => {
   next();
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🌱 Smart Black Pepper Guardian Backend running on http://localhost:${PORT}`);
   console.log(`📡 Listening for requests at /api/soil-analysis (ThingSpeak -> AI)`);
   console.log(`📸 Listening for requests at /api/predict-image (Image -> AI)`);

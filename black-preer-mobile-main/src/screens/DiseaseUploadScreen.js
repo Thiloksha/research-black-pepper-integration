@@ -2,22 +2,29 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+ StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://192.168.8.110:5001';
 
 export default function DiseaseUploadScreen({ navigation }) {
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedAsset, setSelectedAsset] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
 
-  const handleOpenCamera = async () => {
+  const pickFromCamera = async () => {
     try {
+      setWarningMessage('');
+
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
       if (!permissionResult.granted) {
@@ -29,14 +36,14 @@ export default function DiseaseUploadScreen({ navigation }) {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        setSelectedAsset(result.assets[0]);
       }
     } catch (error) {
       console.log('Camera error:', error);
@@ -44,8 +51,10 @@ export default function DiseaseUploadScreen({ navigation }) {
     }
   };
 
-  const handleOpenGallery = async () => {
+  const pickFromGallery = async () => {
     try {
+      setWarningMessage('');
+
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -58,14 +67,14 @@ export default function DiseaseUploadScreen({ navigation }) {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        setSelectedAsset(result.assets[0]);
       }
     } catch (error) {
       console.log('Gallery error:', error);
@@ -74,32 +83,86 @@ export default function DiseaseUploadScreen({ navigation }) {
   };
 
   const handleDetectDisease = async () => {
-    if (!selectedImage) {
-      Alert.alert(
-        'No Image Selected',
-        'Please upload or capture a leaf image first.'
-      );
+    if (!selectedAsset) {
+      setWarningMessage('Please upload or capture a leaf image first.');
       return;
     }
 
     try {
       setLoading(true);
+      setWarningMessage('');
 
-      // Later replace this with your backend API call
-      setTimeout(() => {
-        setLoading(false);
+      const formData = new FormData();
 
-        navigation.navigate('DiseaseResult', {
-          image: selectedImage,
-          disease: 'Leaf Blight',
-          confidence: '94%',
-          treatment: 'Apply copper fungicide and remove infected leaves.',
+      if (Platform.OS === 'web') {
+        if (!selectedAsset.file) {
+          throw new Error('Web image file not found. Please select the image again.');
+        }
+        formData.append('file', selectedAsset.file);
+      } else {
+        formData.append('file', {
+          uri: selectedAsset.uri,
+          name: selectedAsset.fileName || `leaf_${Date.now()}.jpg`,
+          type: selectedAsset.mimeType || 'image/jpeg',
         });
-      }, 1200);
+      }
+
+      console.log('Uploading asset:', selectedAsset);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/predict-image`,
+        formData,
+        {
+          timeout: 60000,
+        }
+      );
+
+      console.log(
+        'FULL BACKEND RESPONSE:',
+        JSON.stringify(response.data, null, 2)
+      );
+
+      const data = response.data;
+
+      if (!data?.ai_analysis) {
+        throw new Error('Invalid response from server.');
+      }
+
+      const result = data.ai_analysis;
+
+      // Only show warning box for truly rejected images
+      if (result.rejected) {
+        setWarningMessage(
+          result.reject_reason ||
+            'The uploaded image is not recognized as a black pepper leaf. Please upload a clear black pepper leaf image.'
+        );
+        return;
+      }
+
+      // Navigate for both normal and low-confidence accepted results
+      navigation.navigate('DiseaseResult', {
+        image: selectedAsset.uri,
+        disease: result.prediction || 'Unknown',
+        confidence: `${result.confidence ?? 0}%`,
+        treatment: result.advice || 'Consult an agricultural expert.',
+        description: result.description || '',
+        probabilities: result.all_probabilities || {},
+        pepperScore: result.pepper_score || null,
+        lowConfidence: result.low_confidence || false,
+      });
     } catch (error) {
-      setLoading(false);
       console.log('Detection error:', error);
-      Alert.alert('Error', 'Failed to process image.');
+
+      const message =
+        error?.response?.data?.error ||
+        error?.response?.data?.details ||
+        error?.response?.data?.stdout ||
+        error?.message ||
+        'Failed to process image.';
+
+      setWarningMessage(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -126,9 +189,16 @@ export default function DiseaseUploadScreen({ navigation }) {
           Use a clear and well-lit image for better prediction accuracy
         </Text>
 
+        {warningMessage ? (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>⚠ Warning</Text>
+            <Text style={styles.warningText}>{warningMessage}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.uploadCard}>
-          {selectedImage ? (
-            <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+          {selectedAsset?.uri ? (
+            <Image source={{ uri: selectedAsset.uri }} style={styles.previewImage} />
           ) : (
             <>
               <Text style={styles.uploadIcon}>🍃</Text>
@@ -143,7 +213,7 @@ export default function DiseaseUploadScreen({ navigation }) {
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={handleOpenCamera}
+            onPress={pickFromCamera}
             activeOpacity={0.8}
           >
             <Text style={styles.secondaryButtonText}>📷 Open Camera</Text>
@@ -151,7 +221,7 @@ export default function DiseaseUploadScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={handleOpenGallery}
+            onPress={pickFromGallery}
             activeOpacity={0.8}
           >
             <Text style={styles.secondaryButtonText}>🖼 Open Gallery</Text>
@@ -177,6 +247,7 @@ export default function DiseaseUploadScreen({ navigation }) {
           <Text style={styles.infoText}>• Capture the full leaf in the frame</Text>
           <Text style={styles.infoText}>• Avoid blurry or dark images</Text>
           <Text style={styles.infoText}>• Keep the background simple if possible</Text>
+          <Text style={styles.infoText}>• Upload only black pepper leaf images</Text>
         </View>
       </View>
     </ScrollView>
@@ -232,6 +303,25 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginBottom: 25,
+    lineHeight: 20,
+  },
+  warningBox: {
+    backgroundColor: '#fff3cd',
+    borderWidth: 1,
+    borderColor: '#ffe08a',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#856404',
+    marginBottom: 6,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#856404',
     lineHeight: 20,
   },
   uploadCard: {
