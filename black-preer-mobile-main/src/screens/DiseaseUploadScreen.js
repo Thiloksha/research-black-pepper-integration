@@ -2,17 +2,23 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
- StyleSheet,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
   Alert,
   ActivityIndicator,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
+
+const { width } = Dimensions.get('window');
+
+const isSmallScreen = width < 480;
+const isWideScreen = width >= 768;
 
 const API_BASE_URL =
   Platform.OS === 'web'
@@ -110,19 +116,10 @@ export default function DiseaseUploadScreen({ navigation }) {
         });
       }
 
-      console.log('Uploading asset:', selectedAsset);
-
       const response = await axios.post(
         `${API_BASE_URL}/api/predict-image`,
         formData,
-        {
-          timeout: 60000,
-        }
-      );
-
-      console.log(
-        'FULL BACKEND RESPONSE:',
-        JSON.stringify(response.data, null, 2)
+        { timeout: 60000 }
       );
 
       const data = response.data;
@@ -133,7 +130,6 @@ export default function DiseaseUploadScreen({ navigation }) {
 
       const result = data.ai_analysis;
 
-      // Only show warning box for truly rejected images
       if (result.rejected) {
         setWarningMessage(
           result.reject_reason ||
@@ -142,7 +138,6 @@ export default function DiseaseUploadScreen({ navigation }) {
         return;
       }
 
-      // Navigate for both normal and low-confidence accepted results
       navigation.navigate('DiseaseResult', {
         image: selectedAsset.uri,
         disease: result.prediction || 'Unknown',
@@ -170,87 +165,123 @@ export default function DiseaseUploadScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <LinearGradient
         colors={['#1a3409', '#2d5016', '#1a3409']}
-        style={styles.heroSection}
+        style={styles.header}
       >
-        <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>
-            Upload Black Pepper Leaf{'\n'}for Disease Detection
-          </Text>
-          <Text style={styles.heroSubtitle}>
-            Capture or upload a clear image of a black pepper leaf to identify
-            possible diseases using AI-powered analysis.
-          </Text>
-        </View>
+        <Text style={styles.badge}>AI Image Upload</Text>
+        <Text style={styles.title}>Leaf Image Upload</Text>
+        <Text style={styles.headerSubtitle}>
+          Select a clear black pepper leaf image to get an AI-powered disease prediction.
+        </Text>
       </LinearGradient>
 
-      <View style={styles.contentSection}>
-        <Text style={styles.sectionTitle}>Leaf Image Upload</Text>
-        <Text style={styles.sectionSubtitle}>
-          Use a clear and well-lit image for better prediction accuracy
-        </Text>
-
+      <View style={styles.content}>
         {warningMessage ? (
-          <View style={styles.warningBox}>
+          <View style={styles.warningCard}>
             <Text style={styles.warningTitle}>⚠ Warning</Text>
             <Text style={styles.warningText}>{warningMessage}</Text>
           </View>
         ) : null}
 
-        <View style={styles.uploadCard}>
+        <View style={styles.previewCard}>
           {selectedAsset?.uri ? (
-            <Image source={{ uri: selectedAsset.uri }} style={styles.previewImage} />
-          ) : (
             <>
-              <Text style={styles.uploadIcon}>🍃</Text>
-              <Text style={styles.uploadTitle}>No Image Selected</Text>
-              <Text style={styles.uploadText}>
-                Upload or capture a black pepper leaf image
-              </Text>
+              <Image source={{ uri: selectedAsset.uri }} style={styles.previewImage} />
+              <View style={styles.previewFooter}>
+                <Text style={styles.previewFooterTitle}>Image Ready</Text>
+                <Text style={styles.previewFooterText}>
+                  Your selected leaf image is ready for disease analysis.
+                </Text>
+              </View>
             </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🍃</Text>
+              <Text style={styles.emptyTitle}>No Image Selected</Text>
+              <Text style={styles.emptyText}>
+                Use your camera or gallery to upload a black pepper leaf image.
+              </Text>
+            </View>
           )}
         </View>
 
-        <View style={styles.buttonRow}>
+        <View
+          style={[
+            styles.actionGrid,
+            isWideScreen && styles.actionGridWide,
+          ]}
+        >
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.actionCard}
             onPress={pickFromCamera}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Text style={styles.secondaryButtonText}>📷 Open Camera</Text>
+            <Text style={styles.actionIcon}>📷</Text>
+            <Text style={styles.actionTitle}>Open Camera</Text>
+            <Text style={styles.actionText}>
+              Capture a fresh photo of the leaf using your device camera.
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.actionCard}
             onPress={pickFromGallery}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Text style={styles.secondaryButtonText}>🖼 Open Gallery</Text>
+            <Text style={styles.actionIcon}>🖼️</Text>
+            <Text style={styles.actionTitle}>Open Gallery</Text>
+            <Text style={styles.actionText}>
+              Select an existing black pepper leaf image from your gallery.
+            </Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.primaryButton, loading && styles.disabledButton]}
+          style={[styles.detectButton, loading && styles.disabledButton]}
           onPress={handleDetectDisease}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.primaryButtonText}>🦠 Detect Disease</Text>
+            <Text style={styles.detectButtonText}>🦠 Detect Disease</Text>
           )}
         </TouchableOpacity>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Tips for Better Results</Text>
-          <Text style={styles.infoText}>• Use a clear image with good lighting</Text>
-          <Text style={styles.infoText}>• Capture the full leaf in the frame</Text>
-          <Text style={styles.infoText}>• Avoid blurry or dark images</Text>
-          <Text style={styles.infoText}>• Keep the background simple if possible</Text>
-          <Text style={styles.infoText}>• Upload only black pepper leaf images</Text>
+        <View style={styles.tipsCard}>
+          <Text style={styles.cardHeading}>Tips for Better Results</Text>
+
+          <View style={styles.tipRow}>
+            <Text style={styles.tipBullet}>•</Text>
+            <Text style={styles.tipText}>Use a clear image with good lighting.</Text>
+          </View>
+
+          <View style={styles.tipRow}>
+            <Text style={styles.tipBullet}>•</Text>
+            <Text style={styles.tipText}>Capture the full leaf inside the frame.</Text>
+          </View>
+
+          <View style={styles.tipRow}>
+            <Text style={styles.tipBullet}>•</Text>
+            <Text style={styles.tipText}>Avoid blurry or dark photos.</Text>
+          </View>
+
+          <View style={styles.tipRow}>
+            <Text style={styles.tipBullet}>•</Text>
+            <Text style={styles.tipText}>Keep the background simple if possible.</Text>
+          </View>
+
+          <View style={styles.tipRow}>
+            <Text style={styles.tipBullet}>•</Text>
+            <Text style={styles.tipText}>Upload only black pepper leaf images.</Text>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -260,168 +291,243 @@ export default function DiseaseUploadScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f7faf7',
   },
-  heroSection: {
-    paddingTop: 60,
-    paddingBottom: 40,
+
+  scrollContent: {
+    paddingBottom: 28,
+  },
+
+  header: {
+    paddingTop: isSmallScreen ? 42 : 60,
+    paddingBottom: isSmallScreen ? 24 : 30,
     paddingHorizontal: 20,
-  },
-  heroContent: {
     alignItems: 'center',
-    marginTop: 20,
   },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '900',
+
+  badge: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
     color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 36,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    lineHeight: 24,
-    opacity: 0.95,
-    paddingHorizontal: 10,
-  },
-  contentSection: {
-    padding: 20,
-    backgroundColor: '#f8f9fa',
-  },
-  sectionTitle: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 10 : 12,
     fontWeight: '700',
-    color: '#2d5016',
-    textAlign: 'center',
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+    overflow: 'hidden',
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#666',
+
+  title: {
+    color: '#fff',
+    fontSize: isSmallScreen ? 24 : 28,
+    fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 25,
-    lineHeight: 20,
+    marginBottom: 8,
   },
-  warningBox: {
+
+  headerSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: isSmallScreen ? 13 : 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 760,
+  },
+
+  content: {
+    padding: isSmallScreen ? 14 : 20,
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+  },
+
+  warningCard: {
     backgroundColor: '#fff3cd',
-    borderWidth: 1,
     borderColor: '#ffe08a',
-    borderRadius: 14,
+    borderWidth: 1,
     padding: 16,
-    marginBottom: 20,
+    borderRadius: 16,
+    marginBottom: 18,
   },
+
   warningTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#856404',
     marginBottom: 6,
   },
+
   warningText: {
     fontSize: 14,
     color: '#856404',
     lineHeight: 20,
   },
-  uploadCard: {
+
+  previewCard: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    minHeight: 280,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 2,
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 18,
+    borderWidth: 1,
     borderColor: '#dceccf',
-    borderStyle: 'dashed',
-    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  uploadIcon: {
-    fontSize: 60,
-    marginBottom: 15,
-  },
-  uploadTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2d5016',
-    marginBottom: 10,
-  },
-  uploadText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
+
   previewImage: {
     width: '100%',
-    height: 240,
-    borderRadius: 15,
+    height: isSmallScreen ? 220 : isWideScreen ? 380 : 280,
     resizeMode: 'cover',
   },
-  buttonRow: {
-    gap: 15,
-    marginBottom: 20,
+
+  previewFooter: {
+    padding: 16,
+    backgroundColor: '#f8fbf7',
   },
-  secondaryButton: {
-    backgroundColor: '#e8f5e9',
-    paddingVertical: 16,
+
+  previewFooterTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2d5016',
+    marginBottom: 4,
+  },
+
+  previewFooterText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+
+  emptyState: {
+    minHeight: isSmallScreen ? 250 : 320,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#fff',
+  },
+
+  emptyIcon: {
+    fontSize: isSmallScreen ? 54 : 64,
+    marginBottom: 14,
+  },
+
+  emptyTitle: {
+    fontSize: isSmallScreen ? 20 : 22,
+    fontWeight: '700',
+    color: '#2d5016',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
+  emptyText: {
+    fontSize: isSmallScreen ? 13 : 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 420,
+  },
+
+  actionGrid: {
+    flexDirection: 'column',
+    gap: 14,
+    marginBottom: 18,
+  },
+
+  actionGridWide: {
+    flexDirection: 'row',
+  },
+
+  actionCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#dceccf',
+    borderRadius: 18,
+    padding: isSmallScreen ? 16 : 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: isSmallScreen ? 140 : 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+
+  actionIcon: {
+    fontSize: isSmallScreen ? 28 : 34,
+    marginBottom: 10,
+  },
+
+  actionTitle: {
+    fontSize: isSmallScreen ? 17 : 18,
+    fontWeight: '700',
+    color: '#2d5016',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
+  actionText: {
+    fontSize: isSmallScreen ? 13 : 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+
+  detectButton: {
+    backgroundColor: '#2d5016',
+    paddingVertical: isSmallScreen ? 15 : 16,
     borderRadius: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#8bc34a',
+    justifyContent: 'center',
+    marginBottom: 18,
   },
-  secondaryButtonText: {
-    color: '#2d5016',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    backgroundColor: '#8bc34a',
-    paddingVertical: 18,
-    borderRadius: 50,
-    alignItems: 'center',
-    marginBottom: 25,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-  },
+
   disabledButton: {
     opacity: 0.7,
   },
-  primaryButtonText: {
+
+  detectButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: isSmallScreen ? 15 : 16,
     fontWeight: '700',
   },
-  infoCard: {
+
+  tipsCard: {
     backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    borderRadius: 18,
+    padding: isSmallScreen ? 16 : 20,
+    borderWidth: 1,
+    borderColor: '#dceccf',
   },
-  infoTitle: {
-    fontSize: 18,
+
+  cardHeading: {
+    fontSize: isSmallScreen ? 18 : 20,
     fontWeight: '700',
     color: '#2d5016',
     marginBottom: 12,
   },
-  infoText: {
-    fontSize: 14,
-    color: '#555',
+
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 8,
+  },
+
+  tipBullet: {
+    fontSize: 16,
+    color: '#2d5016',
+    marginRight: 8,
+    lineHeight: 20,
+  },
+
+  tipText: {
+    flex: 1,
+    fontSize: isSmallScreen ? 13 : 14,
+    color: '#555',
     lineHeight: 20,
   },
 });
