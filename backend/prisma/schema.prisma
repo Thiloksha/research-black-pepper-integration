@@ -59,3 +59,42 @@ model DetectionProbability {
   @@index([detectionId])
   @@map("detection_probabilities")
 }
+
+model VarietyDetection {
+  id                  String   @id @default(uuid())
+
+  imageName           String?
+  imageMimeType       String?
+  imageSizeBytes      Int?
+
+  stageALabel         String?
+  stageAConfidence    Decimal? @db.Decimal(5, 2)
+
+  predictedVariety    String?
+  confidence          Decimal? @db.Decimal(5, 2)
+
+  message             String?
+  accepted            Boolean  @default(true)
+  lowConfidence       Boolean  @default(false)
+
+  rawResponse         Json?
+  createdAt           DateTime @default(now())
+
+  probabilities       VarietyProbability[]
+
+  @@index([predictedVariety])
+  @@index([createdAt])
+  @@map("variety_detections")
+}
+
+model VarietyProbability {
+  id           String   @id @default(uuid())
+  detectionId  String
+  varietyName  String
+  probability  Decimal  @db.Decimal(5, 2)
+
+  detection    VarietyDetection @relation(fields: [detectionId], references: [id], onDelete: Cascade)
+
+  @@index([detectionId])
+  @@map("variety_probabilities")
+}

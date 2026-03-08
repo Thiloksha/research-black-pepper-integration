@@ -3,8 +3,8 @@ const axios = require('axios');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
-const { spawn } = require('child_process');
 const path = require('path');
+const { spawn } = require('child_process');
 const prisma = require('./src/config/prisma');
 
 const app = express();
@@ -68,6 +68,7 @@ const deleteUploadedFile = (filePath) => {
 };
 
 const toPublicImageUrl = (filename) => {
+  if (!filename) return null;
   return `/uploads/${filename}`;
 };
 
@@ -78,18 +79,29 @@ const toDecimalOrNull = (value) => {
     typeof value === 'string' ? value.replace('%', '').trim() : value;
 
   const num = Number(cleaned);
-
   return Number.isFinite(num) ? num : null;
+};
+
+const parseLastJsonLine = (output) => {
+  const lines = output.trim().split('\n');
+  const lastLine = lines[lines.length - 1]?.trim();
+
+  if (!lastLine) {
+    throw new Error('No JSON output returned from Python script.');
+  }
+
+  return JSON.parse(lastLine);
 };
 
 const mapDetectionForClient = (detection) => {
   return {
     id: detection.id,
     image: detection.imageUrl,
+    imageName: detection.imageName,
     disease: detection.predictedDisease,
     confidence:
       detection.confidence !== null && detection.confidence !== undefined
-        ? `${detection.confidence}%`
+        ? `${Number(detection.confidence)}%`
         : 'N/A',
     treatment: detection.treatment,
     description: detection.description,
@@ -104,9 +116,50 @@ const mapDetectionForClient = (detection) => {
     lowConfidence: detection.lowConfidence,
     savedAt: detection.createdAt,
     rejectReason: detection.rejectReason,
-    pepperScore: detection.pepperScore,
+    pepperScore:
+      detection.pepperScore !== null && detection.pepperScore !== undefined
+        ? Number(detection.pepperScore)
+        : null,
   };
 };
+
+const mapVarietyForClient = (detection) => {
+  return {
+    id: detection.id,
+    imageName: detection.imageName,
+    stageA: {
+      label: detection.stageALabel,
+      confidence:
+        detection.stageAConfidence !== null &&
+        detection.stageAConfidence !== undefined
+          ? Number(detection.stageAConfidence)
+          : null,
+    },
+    prediction: {
+      label: detection.predictedVariety,
+      confidence:
+        detection.confidence !== null && detection.confidence !== undefined
+          ? Number(detection.confidence)
+          : null,
+    },
+    message: detection.message,
+    accepted: detection.accepted,
+    lowConfidence: detection.lowConfidence,
+    probabilities: Array.isArray(detection.probabilities)
+      ? Object.fromEntries(
+          detection.probabilities.map((p) => [
+            p.varietyName,
+            Number(p.probability),
+          ])
+        )
+      : {},
+    rawResponse: detection.rawResponse,
+    savedAt: detection.createdAt,
+  };
+};
+
+// Serve uploaded files
+app.use('/uploads', express.static(uploadsDir));
 
 // ---------------- Basic Routes ----------------
 app.get('/', (req, res) => {
@@ -125,12 +178,13 @@ app.get('/health', (req, res) => {
       'GET /api/detections/:id',
       'DELETE /api/detections/:id',
       'DELETE /api/detections',
+      'GET /api/variety-detections',
+      'GET /api/variety-detections/:id',
+      'DELETE /api/variety-detections/:id',
+      'DELETE /api/variety-detections',
     ],
   });
 });
-
-// Serve uploaded files
-app.use('/uploads', express.static(uploadsDir));
 
 // ---------------- Soil Analysis Route ----------------
 app.get('/api/soil-analysis', async (req, res) => {
@@ -142,7 +196,9 @@ app.get('/api/soil-analysis', async (req, res) => {
     const feeds = response.data.feeds;
 
     if (!feeds || feeds.length === 0) {
-      return res.status(404).json({ error: 'No data found on ThingSpeak channel.' });
+      return res
+        .status(404)
+        .json({ error: 'No data found on ThingSpeak channel.' });
     }
 
     const latest = feeds[0];
@@ -186,9 +242,7 @@ app.get('/api/soil-analysis', async (req, res) => {
       }
 
       try {
-        const lines = predictionResult.trim().split('\n');
-        const lastLine = lines[lines.length - 1].trim();
-        const aiResponse = JSON.parse(lastLine);
+        const aiResponse = parseLastJsonLine(predictionResult);
 
         const finalPayload = {
           timestamp: latest.created_at,
@@ -200,12 +254,16 @@ app.get('/api/soil-analysis', async (req, res) => {
         return res.json(finalPayload);
       } catch (parseError) {
         console.error('Failed to parse Python output:', predictionResult);
-        return res.status(500).json({ error: 'Invalid prediction format returned.' });
+        return res
+          .status(500)
+          .json({ error: 'Invalid prediction format returned.' });
       }
     });
   } catch (error) {
     console.error('Server Error:', error.message);
-    return res.status(500).json({ error: 'Failed to fetch from ThingSpeak or process data.' });
+    return res
+      .status(500)
+      .json({ error: 'Failed to fetch from ThingSpeak or process data.' });
   }
 });
 
@@ -254,14 +312,11 @@ app.delete('/api/detections/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('🗑 Delete single detection request received for ID:', id);
-
     const existing = await prisma.diseaseDetection.findUnique({
       where: { id },
     });
 
     if (!existing) {
-      console.log('⚠ Detection not found:', id);
       return res.status(404).json({ error: 'Detection not found' });
     }
 
@@ -269,32 +324,106 @@ app.delete('/api/detections/:id', async (req, res) => {
       where: { id },
     });
 
-    console.log('✅ Detection deleted successfully:', id);
-
     return res.json({ message: 'Detection deleted successfully' });
   } catch (error) {
-    console.error('❌ Delete detection error:', error);
+    console.error('Delete detection error:', error);
     return res.status(500).json({ error: 'Failed to delete detection' });
   }
 });
 
 app.delete('/api/detections', async (req, res) => {
   try {
-    console.log('🗑 Delete ALL detections request received');
-
     await prisma.detectionProbability.deleteMany();
     await prisma.diseaseDetection.deleteMany();
 
-    console.log('✅ All detections deleted successfully');
-
     return res.json({ message: 'All detections deleted successfully' });
   } catch (error) {
-    console.error('❌ Delete all detections error:', error);
+    console.error('Delete all detections error:', error);
     return res.status(500).json({ error: 'Failed to delete all detections' });
   }
 });
 
-// ---------------- General Image Prediction Route ----------------
+// ---------------- Variety Detection History Routes ----------------
+app.get('/api/variety-detections', async (req, res) => {
+  try {
+    const detections = await prisma.varietyDetection.findMany({
+      include: {
+        probabilities: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return res.json(detections.map(mapVarietyForClient));
+  } catch (error) {
+    console.error('Fetch variety detections error:', error);
+    return res.status(500).json({ error: 'Failed to fetch variety detections' });
+  }
+});
+
+app.get('/api/variety-detections/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const detection = await prisma.varietyDetection.findUnique({
+      where: { id },
+      include: {
+        probabilities: true,
+      },
+    });
+
+    if (!detection) {
+      return res.status(404).json({ error: 'Variety detection not found' });
+    }
+
+    return res.json(mapVarietyForClient(detection));
+  } catch (error) {
+    console.error('Fetch variety detection by id error:', error);
+    return res.status(500).json({ error: 'Failed to fetch variety detection' });
+  }
+});
+
+app.delete('/api/variety-detections/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.varietyDetection.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Variety detection not found' });
+    }
+
+    await prisma.varietyDetection.delete({
+      where: { id },
+    });
+
+    return res.json({ message: 'Variety detection deleted successfully' });
+  } catch (error) {
+    console.error('Delete variety detection error:', error);
+    return res.status(500).json({ error: 'Failed to delete variety detection' });
+  }
+});
+
+app.delete('/api/variety-detections', async (req, res) => {
+  try {
+    await prisma.varietyProbability.deleteMany();
+    await prisma.varietyDetection.deleteMany();
+
+    return res.json({
+      message: 'All variety detections deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete all variety detections error:', error);
+    return res
+      .status(500)
+      .json({ error: 'Failed to delete all variety detections' });
+  }
+});
+
+// ---------------- Disease Prediction Route ----------------
 app.post(
   '/api/predict-image',
   (req, res, next) => {
@@ -368,11 +497,11 @@ app.post(
         }
 
         try {
-          const lines = predictionResult.trim().split('\n');
-          const lastLine = lines[lines.length - 1].trim();
-          const aiResponse = JSON.parse(lastLine);
+          const aiResponse = parseLastJsonLine(predictionResult);
 
-          const probabilityEntries = Object.entries(aiResponse.all_probabilities || {})
+          const probabilityEntries = Object.entries(
+            aiResponse.all_probabilities || {}
+          )
             .map(([diseaseName, probability]) => ({
               diseaseName,
               probability: toDecimalOrNull(probability),
@@ -459,7 +588,7 @@ app.post('/api/variety-predict', upload.single('image'), (req, res) => {
     }
 
     const imagePath = req.file.path;
-    console.log('Received image:', imagePath);
+    console.log('Received variety image:', imagePath);
 
     const pythonProcess = spawn('python', [
       path.join(__dirname, 'predict_variety.py'),
@@ -475,18 +604,17 @@ app.post('/api/variety-predict', upload.single('image'), (req, res) => {
 
     pythonProcess.stderr.on('data', (data) => {
       errorResult += data.toString();
-      console.error(`Python Error: ${data}`);
+      console.error(`Variety Python Error: ${data}`);
     });
 
-    pythonProcess.on('close', (code) => {
-      console.log('=== Python exit code:', code);
-      console.log('=== Python stdout:', result);
-      console.log('=== Python stderr:', errorResult);
-
-      deleteUploadedFile(imagePath);
+    pythonProcess.on('close', async (code) => {
+      console.log('=== Variety Python exit code:', code);
+      console.log('=== Variety Python stdout:', result);
+      console.log('=== Variety Python stderr:', errorResult);
 
       if (code !== 0) {
-        console.error(`Python script exited with code ${code}`);
+        deleteUploadedFile(imagePath);
+
         return res.status(500).json({
           error: 'Variety prediction failed',
           details: errorResult,
@@ -494,20 +622,70 @@ app.post('/api/variety-predict', upload.single('image'), (req, res) => {
       }
 
       try {
-        const lines = result.trim().split('\n');
-        const lastLine = lines[lines.length - 1].trim();
-        const parsed = JSON.parse(lastLine);
-        return res.json(parsed);
+        const parsed = parseLastJsonLine(result);
+
+        const probabilityEntries = Object.entries(parsed.probabilities || {})
+          .map(([varietyName, probability]) => ({
+            varietyName,
+            probability: toDecimalOrNull(probability),
+          }))
+          .filter((item) => item.probability !== null);
+
+        const savedVariety = await prisma.varietyDetection.create({
+          data: {
+            imageName: req.file.originalname,
+            imageMimeType: req.file.mimetype,
+            imageSizeBytes: req.file.size,
+            stageALabel: parsed?.stageA?.label || null,
+            stageAConfidence: toDecimalOrNull(parsed?.stageA?.confidence),
+            predictedVariety: parsed?.prediction?.label || null,
+            confidence: toDecimalOrNull(parsed?.prediction?.confidence),
+            message: parsed?.message || null,
+            accepted:
+              typeof parsed?.accepted === 'boolean' ? parsed.accepted : true,
+            lowConfidence:
+              parsed?.low_confidence !== undefined
+                ? Boolean(parsed.low_confidence)
+                : parsed?.prediction?.confidence != null
+                ? Number(parsed.prediction.confidence) < 50
+                : false,
+            rawResponse: parsed,
+            probabilities: probabilityEntries.length
+              ? {
+                  create: probabilityEntries,
+                }
+              : undefined,
+          },
+          include: {
+            probabilities: true,
+          },
+        });
+
+        deleteUploadedFile(imagePath);
+
+        return res.json({
+          success: true,
+          varietyDetectionId: savedVariety.id,
+          ai_analysis: parsed,
+        });
       } catch (err) {
-        console.error('Failed to parse Python output:', result);
+        deleteUploadedFile(imagePath);
+
+        console.error('Failed to parse/save Python output:', err);
+        console.error('Raw Python output:', result);
+
         return res.status(500).json({
           error: 'Invalid response from Python script',
+          details: err.message,
         });
       }
     });
   } catch (error) {
     console.error('Server Error:', error.message);
-    return res.status(500).json({ error: 'Server failed during image prediction.' });
+    return res.status(500).json({
+      error: 'Server failed during variety prediction.',
+      details: error.message,
+    });
   }
 });
 
@@ -540,9 +718,25 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.error('❌ PostgreSQL connection failed:', error);
   }
 
-  console.log(`\n🌱 Smart Black Pepper Guardian Backend running on http://localhost:${PORT}`);
+  console.log(
+    `\n🌱 Smart Black Pepper Guardian Backend running on http://localhost:${PORT}`
+  );
   console.log(`📡 Listening for requests at /api/soil-analysis`);
   console.log(`📸 Listening for requests at /api/predict-image`);
   console.log(`🍃 Listening for requests at /api/variety-predict`);
   console.log(`🗂 Listening for requests at /api/detections`);
+  console.log(`🌿 Listening for requests at /api/variety-detections`);
+});
+
+// ---------------- Graceful Shutdown ----------------
+process.on('SIGINT', async () => {
+  console.log('\nShutting down server...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\nShutting down server...');
+  await prisma.$disconnect();
+  process.exit(0);
 });
