@@ -171,21 +171,7 @@ export default function DiseaseUploadScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient
-        colors={['#1a3409', '#2d5016', '#1a3409']}
-        style={styles.heroSection}
-      >
-        <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>
-            Upload Black Pepper Leaf{'\n'}for Disease Detection
-          </Text>
-          <Text style={styles.heroSubtitle}>
-            Capture or upload a clear image of a black pepper leaf to identify
-            possible diseases using AI-powered analysis.
-          </Text>
-        </View>
-      </LinearGradient>
-
+    
       <View style={styles.contentSection}>
         <Text style={styles.sectionTitle}>Leaf Image Upload</Text>
         <Text style={styles.sectionSubtitle}>
