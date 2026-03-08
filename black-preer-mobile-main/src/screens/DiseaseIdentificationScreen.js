@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,67 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
+const howItWorksData = [
+  {
+    id: 1,
+    emoji: '📸',
+    title: 'Capture Leaf Image',
+    description: 'Take a clear photo of the black pepper leaf',
+  },
+  {
+    id: 2,
+    emoji: '🧠',
+    title: 'AI Disease Analysis',
+    description: 'The model analyzes symptoms, colors, and patterns',
+  },
+  {
+    id: 3,
+    emoji: '📋',
+    title: 'Get Prediction',
+    description: 'View disease type and confidence score',
+  },
+  {
+    id: 4,
+    emoji: '🌱',
+    title: 'Take Action',
+    description: 'Use the result for better treatment decisions',
+  },
+];
+
 export default function DiseaseIdentificationScreen({ navigation }) {
+  const sliderRef = useRef(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
   const handleStartDetection = () => {
     navigation.navigate('DiseaseUpload');
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nextSlide =
+        currentSlide === howItWorksData.length - 1 ? 0 : currentSlide + 1;
+
+      setCurrentSlide(nextSlide);
+
+      sliderRef.current?.scrollTo({
+        x: nextSlide * width,
+        animated: true,
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [currentSlide]);
+
+  const handleManualScroll = (event) => {
+    const slideWidth = width;
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
+    setCurrentSlide(index);
   };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Hero Section */}
-      <LinearGradient
-        colors={['#1a3409', '#2d5016', '#1a3409']}
-        style={styles.heroSection}
-      >
+      <View style={styles.heroSection}>
         <View style={styles.heroContent}>
           <Text style={styles.heroTitle}>
             AI-Powered Black Pepper Leaf{'\n'}Disease Identification
@@ -33,90 +82,51 @@ export default function DiseaseIdentificationScreen({ navigation }) {
             learning. Upload a leaf image and receive fast, intelligent predictions
             with confidence levels and treatment guidance.
           </Text>
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleStartDetection}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.primaryButtonText}>🦠 Start Detection</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </LinearGradient>
+      </View>
 
-      {/* How It Works Section */}
+      {/* How It Works Slider */}
       <View style={styles.howItWorksSection}>
         <Text style={styles.sectionTitle}>How It Works</Text>
+
         <Text style={styles.sectionSubtitle}>
           Follow these simple steps to identify black pepper leaf diseases
         </Text>
 
-        <View style={styles.howItWorksGrid}>
-          <View style={styles.howCard}>
-            <Text style={styles.howCardEmoji}>📸</Text>
-            <Text style={styles.howCardTitle}>Capture Leaf Image</Text>
-            <Text style={styles.howCardDescription}>
-              Take a clear photo of the black pepper leaf
-            </Text>
-          </View>
+        <View style={styles.sliderWrapper}>
+          <ScrollView
+            ref={sliderRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleManualScroll}
+          >
+            {howItWorksData.map((item) => (
+              <View key={item.id} style={styles.slidePage}>
+                <View style={styles.slideCard}>
+                  <Text style={styles.howCardEmoji}>{item.emoji}</Text>
+                  <Text style={styles.howCardTitle}>{item.title}</Text>
+                  <Text style={styles.howCardDescription}>
+                    {item.description}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
 
-          <View style={styles.howCard}>
-            <Text style={styles.howCardEmoji}>🧠</Text>
-            <Text style={styles.howCardTitle}>AI Disease Analysis</Text>
-            <Text style={styles.howCardDescription}>
-              The model analyzes symptoms, colors, and patterns
-            </Text>
-          </View>
-
-          <View style={styles.howCard}>
-            <Text style={styles.howCardEmoji}>📋</Text>
-            <Text style={styles.howCardTitle}>Get Prediction</Text>
-            <Text style={styles.howCardDescription}>
-              View disease type and confidence score
-            </Text>
-          </View>
-
-          <View style={styles.howCard}>
-            <Text style={styles.howCardEmoji}>🌱</Text>
-            <Text style={styles.howCardTitle}>Take Action</Text>
-            <Text style={styles.howCardDescription}>
-              Use the result for better treatment decisions
-            </Text>
-          </View>
+        <View style={styles.dotsContainer}>
+          {howItWorksData.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                currentSlide === index ? styles.activeDot : styles.inactiveDot,
+              ]}
+            />
+          ))}
         </View>
       </View>
-
-      {/* Statistics Section */}
-      {/* <View style={styles.statisticsSection}>
-        <Text style={styles.sectionTitle}>System Statistics</Text>
-        <Text style={styles.sectionSubtitle}>
-          Key performance highlights of the disease detection system
-        </Text>
-
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>94%+</Text>
-            <Text style={styles.statLabelGreen}>Detection Accuracy</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>3+</Text>
-            <Text style={styles.statLabelGreen}>Disease Classes</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>Fast</Text>
-            <Text style={styles.statLabelGreen}>Prediction Speed</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>AI</Text>
-            <Text style={styles.statLabelGreen}>Image Analysis</Text>
-          </View>
-        </View>
-      </View> */}
 
       {/* CTA Section */}
       <LinearGradient
@@ -126,9 +136,11 @@ export default function DiseaseIdentificationScreen({ navigation }) {
         <Text style={styles.ctaTitle}>
           Ready to Identify Black Pepper Leaf Diseases?
         </Text>
+
         <Text style={styles.ctaSubtitle}>
           Start your AI-powered disease detection now
         </Text>
+
         <TouchableOpacity
           style={styles.ctaButton}
           onPress={handleStartDetection}
@@ -151,59 +163,28 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
     paddingHorizontal: 20,
+    backgroundColor: '#f5f9f4',
   },
 
   heroContent: {
     alignItems: 'center',
-    marginTop: 20,
   },
 
   heroTitle: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#fff',
+    color: '#2d5016',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
     lineHeight: 36,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
   },
 
   heroSubtitle: {
     fontSize: 16,
-    color: '#fff',
+    color: '#2d5016',
     textAlign: 'center',
-    marginBottom: 30,
     lineHeight: 24,
-    opacity: 0.95,
-    paddingHorizontal: 10,
-  },
-
-  buttonContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 15,
-    marginBottom: 20,
-  },
-
-  primaryButton: {
-    backgroundColor: '#8bc34a',
-    paddingVertical: 15,
-    paddingHorizontal: 35,
-    borderRadius: 50,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    opacity: 0.8,
   },
 
   sectionTitle: {
@@ -218,93 +199,82 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 25,
+    paddingHorizontal: 20,
     lineHeight: 20,
   },
 
   howItWorksSection: {
-    padding: 20,
+    paddingVertical: 25,
     backgroundColor: '#f8f9fa',
   },
 
-  howItWorksGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  sliderWrapper: {
+    height: 260,
   },
 
-  howCard: {
-    backgroundColor: '#fff',
-    width: '48%',
-    padding: 18,
-    borderRadius: 15,
-    marginBottom: 15,
+  slidePage: {
+    width: width,
+    justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
+    paddingHorizontal: 20,
+  },
+
+  slideCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    paddingVertical: 35,
+    paddingHorizontal: 25,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 5,
   },
 
   howCardEmoji: {
-    fontSize: 36,
-    marginBottom: 10,
+    fontSize: 48,
+    marginBottom: 15,
   },
 
   howCardTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '700',
     color: '#2d5016',
+    marginBottom: 10,
     textAlign: 'center',
-    marginBottom: 8,
   },
 
   howCardDescription: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 22,
   },
 
-  statisticsSection: {
-    padding: 20,
-    backgroundColor: '#dcefdc',
-  },
-
-  statsContainer: {
+  dotsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    gap: 15,
+    justifyContent: 'center',
+    marginTop: 18,
   },
 
-  statCard: {
-    backgroundColor: '#f8f9fa',
-    padding: 20,
-    borderRadius: 15,
-    alignItems: 'center',
-    minWidth: (width - 60) / 2,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 5,
   },
 
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#8bc34a',
-    marginBottom: 5,
+  activeDot: {
+    backgroundColor: '#2d5016',
+    width: 22,
   },
 
-  statLabelGreen: {
-    fontSize: 12,
-    color: '#2d5016',
-    fontWeight: '600',
-    textAlign: 'center',
+  inactiveDot: {
+    backgroundColor: '#cfd8dc',
   },
 
   ctaSection: {
