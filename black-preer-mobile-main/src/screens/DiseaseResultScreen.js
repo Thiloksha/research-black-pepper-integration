@@ -9,13 +9,45 @@ import {
   Alert
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function DiseaseResultScreen({ route, navigation }) {
+  const {
+    image,
+    disease,
+    confidence,
+    treatment,
+    description,
+    probabilities,
+    lowConfidence
+  } = route.params;
 
-  const { image, disease, confidence, treatment } = route.params;
+  const handleSave = async () => {
+    try {
+      const newItem = {
+        id: Date.now().toString(),
+        image,
+        disease,
+        confidence,
+        treatment,
+        description,
+        probabilities,
+        lowConfidence: lowConfidence || false,
+        savedAt: new Date().toLocaleString(),
+      };
 
-  const handleSave = () => {
-    Alert.alert("Saved", "Result saved successfully!");
+      const existing = await AsyncStorage.getItem("disease_history");
+      const history = existing ? JSON.parse(existing) : [];
+
+      history.unshift(newItem);
+
+      await AsyncStorage.setItem("disease_history", JSON.stringify(history));
+
+      navigation.navigate("DiseaseHistory");
+    } catch (error) {
+      console.log("Save error:", error);
+      Alert.alert("Error", "Failed to save result.");
+    }
   };
 
   const handleHistory = () => {
@@ -24,7 +56,6 @@ export default function DiseaseResultScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-
       <LinearGradient
         colors={['#1a3409', '#2d5016', '#1a3409']}
         style={styles.header}
@@ -33,8 +64,18 @@ export default function DiseaseResultScreen({ route, navigation }) {
       </LinearGradient>
 
       <View style={styles.content}>
-
         <Image source={{ uri: image }} style={styles.image} />
+
+        {lowConfidence && (
+          <View style={styles.warningCard}>
+            <Text style={styles.warningTitle}>⚠ Low Confidence Detection</Text>
+            <Text style={styles.warningText}>
+              This result may indicate an early or mild infection. The AI model
+              confidence is lower than normal. Monitor the plant and capture a
+              clearer close-up image for more accurate detection.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.resultCard}>
           <Text style={styles.resultTitle}>Detected Disease</Text>
@@ -43,9 +84,25 @@ export default function DiseaseResultScreen({ route, navigation }) {
           <Text style={styles.label}>Confidence</Text>
           <Text style={styles.value}>{confidence}</Text>
 
+          <Text style={styles.label}>Description</Text>
+          <Text style={styles.value}>{description}</Text>
+
           <Text style={styles.label}>Treatment Recommendation</Text>
           <Text style={styles.value}>{treatment}</Text>
         </View>
+
+        {probabilities && Object.keys(probabilities).length > 0 && (
+          <View style={styles.probCard}>
+            <Text style={styles.probTitle}>All Predictions</Text>
+
+            {Object.entries(probabilities).map(([key, value]) => (
+              <View key={key} style={styles.probRow}>
+                <Text style={styles.probDisease}>{key}</Text>
+                <Text style={styles.probValue}>{value}%</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.buttonText}>💾 Save Result</Text>
@@ -54,15 +111,12 @@ export default function DiseaseResultScreen({ route, navigation }) {
         <TouchableOpacity style={styles.historyButton} onPress={handleHistory}>
           <Text style={styles.historyText}>📜 View History</Text>
         </TouchableOpacity>
-
       </View>
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#fff"
@@ -89,6 +143,28 @@ const styles = StyleSheet.create({
     height: 220,
     borderRadius: 15,
     marginBottom: 20
+  },
+
+  warningCard: {
+    backgroundColor: "#fff3cd",
+    borderColor: "#ffe08a",
+    borderWidth: 1,
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20
+  },
+
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#856404",
+    marginBottom: 6
+  },
+
+  warningText: {
+    fontSize: 14,
+    color: "#856404",
+    lineHeight: 20
   },
 
   resultCard: {
@@ -124,6 +200,38 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
 
+  probCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#dceccf"
+  },
+
+  probTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+    color: "#2d5016"
+  },
+
+  probRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6
+  },
+
+  probDisease: {
+    fontSize: 15,
+    color: "#333"
+  },
+
+  probValue: {
+    fontSize: 15,
+    fontWeight: "600"
+  },
+
   saveButton: {
     backgroundColor: "#8bc34a",
     padding: 16,
@@ -150,5 +258,4 @@ const styles = StyleSheet.create({
     color: "#2d5016",
     fontWeight: "700"
   }
-
 });
