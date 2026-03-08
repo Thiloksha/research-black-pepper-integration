@@ -9,9 +9,9 @@ import {
   Alert
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function DiseaseResultScreen({ route, navigation }) {
-
   const {
     image,
     disease,
@@ -22,8 +22,32 @@ export default function DiseaseResultScreen({ route, navigation }) {
     lowConfidence
   } = route.params;
 
-  const handleSave = () => {
-    Alert.alert("Saved", "Result saved successfully!");
+  const handleSave = async () => {
+    try {
+      const newItem = {
+        id: Date.now().toString(),
+        image,
+        disease,
+        confidence,
+        treatment,
+        description,
+        probabilities,
+        lowConfidence: lowConfidence || false,
+        savedAt: new Date().toLocaleString(),
+      };
+
+      const existing = await AsyncStorage.getItem("disease_history");
+      const history = existing ? JSON.parse(existing) : [];
+
+      history.unshift(newItem);
+
+      await AsyncStorage.setItem("disease_history", JSON.stringify(history));
+
+      navigation.navigate("DiseaseHistory");
+    } catch (error) {
+      console.log("Save error:", error);
+      Alert.alert("Error", "Failed to save result.");
+    }
   };
 
   const handleHistory = () => {
@@ -32,7 +56,6 @@ export default function DiseaseResultScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-
       <LinearGradient
         colors={['#1a3409', '#2d5016', '#1a3409']}
         style={styles.header}
@@ -41,11 +64,8 @@ export default function DiseaseResultScreen({ route, navigation }) {
       </LinearGradient>
 
       <View style={styles.content}>
-
-        {/* Leaf Image */}
         <Image source={{ uri: image }} style={styles.image} />
 
-        {/* Low Confidence Warning */}
         {lowConfidence && (
           <View style={styles.warningCard}>
             <Text style={styles.warningTitle}>⚠ Low Confidence Detection</Text>
@@ -57,9 +77,7 @@ export default function DiseaseResultScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Result Card */}
         <View style={styles.resultCard}>
-
           <Text style={styles.resultTitle}>Detected Disease</Text>
           <Text style={styles.resultValue}>{disease}</Text>
 
@@ -71,10 +89,8 @@ export default function DiseaseResultScreen({ route, navigation }) {
 
           <Text style={styles.label}>Treatment Recommendation</Text>
           <Text style={styles.value}>{treatment}</Text>
-
         </View>
 
-        {/* All probabilities */}
         {probabilities && Object.keys(probabilities).length > 0 && (
           <View style={styles.probCard}>
             <Text style={styles.probTitle}>All Predictions</Text>
@@ -85,11 +101,9 @@ export default function DiseaseResultScreen({ route, navigation }) {
                 <Text style={styles.probValue}>{value}%</Text>
               </View>
             ))}
-
           </View>
         )}
 
-        {/* Buttons */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.buttonText}>💾 Save Result</Text>
         </TouchableOpacity>
@@ -97,15 +111,12 @@ export default function DiseaseResultScreen({ route, navigation }) {
         <TouchableOpacity style={styles.historyButton} onPress={handleHistory}>
           <Text style={styles.historyText}>📜 View History</Text>
         </TouchableOpacity>
-
       </View>
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#fff"
@@ -134,7 +145,6 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
 
-  /* Warning banner */
   warningCard: {
     backgroundColor: "#fff3cd",
     borderColor: "#ffe08a",
@@ -248,5 +258,4 @@ const styles = StyleSheet.create({
     color: "#2d5016",
     fontWeight: "700"
   }
-
 });

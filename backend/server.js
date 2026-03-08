@@ -52,6 +52,18 @@ const upload = multer({
   },
 });
 
+const deleteUploadedFile = (filePath) => {
+  if (!filePath) return;
+
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('Failed to delete uploaded file:', err.message);
+    } else {
+      console.log('Uploaded file deleted:', filePath);
+    }
+  });
+};
+
 app.get('/', (req, res) => {
   res.send('Smart Black Pepper Guardian Backend Running 🚀');
 });
@@ -189,6 +201,8 @@ app.post(
           console.error('Python stdout:', predictionResult);
           console.error('Python stderr:', errorResult);
 
+          deleteUploadedFile(imagePath);
+
           return res.status(500).json({
             error: 'Image prediction failed',
             stdout: predictionResult,
@@ -201,6 +215,8 @@ app.post(
           const lastLine = lines[lines.length - 1].trim();
           const aiResponse = JSON.parse(lastLine);
 
+          deleteUploadedFile(imagePath);
+
           return res.json({
             success: true,
             image_name: req.file.filename,
@@ -208,6 +224,9 @@ app.post(
           });
         } catch (parseError) {
           console.error('Failed to parse Python output:', predictionResult);
+
+          deleteUploadedFile(imagePath);
+
           return res.status(500).json({
             error: 'Invalid image prediction format returned.',
             raw_output: predictionResult,
