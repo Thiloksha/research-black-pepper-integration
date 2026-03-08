@@ -1,6 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const multer = require('multer');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -11,11 +13,29 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
-// Configuration
+// ---------------- Existing Config ----------------
 const TS_CHANNEL = '3187265';
 const TS_KEY = 'ISFWVJXZW7P5TMQ9';
 
-// Endpoint to fetch ThingSpeak data and run prediction
+// ---------------- Upload Config ----------------
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueName = `${Date.now()}-${file.originalname}`;
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({ storage });
+
+// ---------------- Soil Analysis Route ----------------
 app.get('/api/soil-analysis', async (req, res) => {
     try {
         console.log("Fetching live data from ThingSpeak...");
@@ -30,7 +50,6 @@ app.get('/api/soil-analysis', async (req, res) => {
 
         const latest = feeds[0];
 
-        // Map ThingSpeak fields to the Sensor format expected by the model
         const sensorData = {
             Temperature: parseFloat(latest.field1 || 0),
             Moisture: parseFloat(latest.field2 || 0),
@@ -43,7 +62,6 @@ app.get('/api/soil-analysis', async (req, res) => {
 
         console.log("Extracted Sensor Data:", sensorData);
 
-        // Call Python script for AI prediction using Hybrid Ensemble
         const pythonProcess = spawn('python', [
             path.join(__dirname, 'predict.py'),
             JSON.stringify(sensorData)
@@ -71,10 +89,8 @@ app.get('/api/soil-analysis', async (req, res) => {
             }
 
             try {
-                // Parse the JSON printed by the Python script
                 const aiResponse = JSON.parse(predictionResult);
 
-                // Construct final payload
                 const finalPayload = {
                     timestamp: latest.created_at,
                     sensors: sensorData,
@@ -95,7 +111,71 @@ app.get('/api/soil-analysis', async (req, res) => {
     }
 });
 
+// ---------------- NEW Variety Prediction Route ----------------
+app.post('/api/variety-predict', upload.single('image'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "No image uploaded." });
+        }
+
+        const imagePath = req.file.path;
+        console.log("Received image:", imagePath);
+
+        const pythonProcess = spawn('python', [
+            path.join(__dirname, 'predict_variety.py'),
+            imagePath
+        ]);
+
+        let result = '';
+        let errorResult = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            result += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorResult += data.toString();
+            console.error(`Python Error: ${data}`);
+        });
+
+        pythonProcess.on('close', (code) => {
+            console.log('=== Python exit code:', code);
+            console.log('=== Python stdout:', result);
+            console.log('=== Python stderr:', errorResult);
+            fs.unlink(imagePath, (err) => {
+                if (err) console.error("Failed to delete uploaded file:", err.message);
+            });
+
+            if (code !== 0) {
+                console.error(`Python script exited with code ${code}`);
+                return res.status(500).json({
+                    error: "Variety prediction failed",
+                    details: errorResult
+                });
+            }
+
+            try {
+                // FIX: take only the last line (the actual JSON result)
+                const lines = result.trim().split('\n');
+                const lastLine = lines[lines.length - 1].trim();
+                const parsed = JSON.parse(lastLine);
+                return res.json(parsed);
+            } catch (err) {
+                console.error("Failed to parse Python output:", result);
+                return res.status(500).json({
+                    error: "Invalid response from Python script"
+                });
+            }
+        });
+
+    } catch (error) {
+        console.error("Server Error:", error.message);
+        res.status(500).json({ error: "Server failed during image prediction." });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`\n🌱 Smart Black Pepper Guardian Backend running on http://localhost:${PORT}`);
-    console.log(`📡 Listening for requests at /api/soil-analysis (ThingSpeak -> AI)`);
+    console.log(`📡 Soil API:    /api/soil-analysis`);
+    console.log(`📷 Variety API: /api/variety-predict`);
 });

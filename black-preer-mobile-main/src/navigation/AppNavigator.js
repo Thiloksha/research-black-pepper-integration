@@ -10,6 +10,10 @@ import DashboardScreen from '../screens/DashboardScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
 import DiseaseUploadScreen from '../screens/DiseaseUploadScreen';
 import DiseaseResultScreen from '../screens/DiseaseResultScreen';
+import VarietyHubScreen from '../screens/VarietyHubScreen';
+import VarietyIdentifyScreen from '../screens/VarietyIdentifyScreen';
+import VarietyInfoScreen from '../screens/VarietyInfoScreen';
+import VarietyHistoryScreen from '../screens/VarietyHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,7 +21,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Landing"
+        initialRouteName="SignIn"
         screenOptions={{
           headerStyle: {
             backgroundColor: '#2d5016',
@@ -72,7 +76,27 @@ export default function AppNavigator() {
           name="DiseaseResult"
           component={DiseaseResultScreen}
           options={{ title: 'Detection Result' }}
-        /> 
+        />
+        <Stack.Screen 
+          name="VarietyHub"
+          component={VarietyHubScreen}
+          options={{ title: 'Pepper Variety Module' }}
+        />
+        <Stack.Screen
+          name="VarietyIdentify"
+          component={VarietyIdentifyScreen}
+          options={{ title: 'Identify Variety' }}
+        />
+        <Stack.Screen
+          name="VarietyInfo"
+          component={VarietyInfoScreen}
+          options={{ title: 'Variety Info' }}
+        />
+        <Stack.Screen
+          name="VarietyHistory"
+          component={VarietyHistoryScreen}
+          options={{ title: 'History' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

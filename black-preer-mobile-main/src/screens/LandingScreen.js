@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LandingScreen({ navigation }) {
+    const handleVariety = () => {
+        navigation.navigate('VarietyHub');
+    };
+
     const handleHealth = () => {
         navigation.navigate('Home');
     };
@@ -31,6 +35,15 @@ export default function LandingScreen({ navigation }) {
                 </Text>
 
                 <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={handleVariety}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.buttonIcon}>🍃</Text>
+                        <Text style={styles.primaryButtonText}>Identify Pepper Variety</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                         style={styles.primaryButton}
                         onPress={handleHealth}
@@ -104,7 +117,7 @@ const styles = StyleSheet.create({
         gap: 20,
     },
     primaryButton: {
-        backgroundColor: '#8bc34a',
+        backgroundColor: '#5b684d',
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 20,

@@ -18,8 +18,8 @@ export default function SignInScreen({ navigation }) {
   const handleSignIn = () => {
     // TODO: Implement sign-in logic when backend is ready
     console.log('Signing in with:', email, password);
-    // For now, just navigate to home
-    navigation.navigate('Home');
+    // For now, just navigate to landing
+    navigation.navigate('Landing');
   };
 
   return (
