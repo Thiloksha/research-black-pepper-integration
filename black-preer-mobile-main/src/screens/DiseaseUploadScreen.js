@@ -14,7 +14,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://192.168.8.110:5001';
+const API_BASE_URL =
+  Platform.OS === 'web'
+    ? 'http://localhost:5001'
+    : 'http://192.168.8.110:5001';
 
 export default function DiseaseUploadScreen({ navigation }) {
   const [selectedAsset, setSelectedAsset] = useState(null);
