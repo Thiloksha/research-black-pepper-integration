@@ -254,11 +254,14 @@ app.delete('/api/detections/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log('🗑 Delete single detection request received for ID:', id);
+
     const existing = await prisma.diseaseDetection.findUnique({
       where: { id },
     });
 
     if (!existing) {
+      console.log('⚠ Detection not found:', id);
       return res.status(404).json({ error: 'Detection not found' });
     }
 
@@ -266,21 +269,27 @@ app.delete('/api/detections/:id', async (req, res) => {
       where: { id },
     });
 
+    console.log('✅ Detection deleted successfully:', id);
+
     return res.json({ message: 'Detection deleted successfully' });
   } catch (error) {
-    console.error('Delete detection error:', error);
+    console.error('❌ Delete detection error:', error);
     return res.status(500).json({ error: 'Failed to delete detection' });
   }
 });
 
 app.delete('/api/detections', async (req, res) => {
   try {
+    console.log('🗑 Delete ALL detections request received');
+
     await prisma.detectionProbability.deleteMany();
     await prisma.diseaseDetection.deleteMany();
 
+    console.log('✅ All detections deleted successfully');
+
     return res.json({ message: 'All detections deleted successfully' });
   } catch (error) {
-    console.error('Delete all detections error:', error);
+    console.error('❌ Delete all detections error:', error);
     return res.status(500).json({ error: 'Failed to delete all detections' });
   }
 });

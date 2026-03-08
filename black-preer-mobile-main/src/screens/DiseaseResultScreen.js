@@ -6,12 +6,9 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Dimensions,
-  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -29,54 +26,15 @@ export default function DiseaseResultScreen({ route, navigation }) {
     lowConfidence,
   } = route.params;
 
-  const getSafeImageForHistory = (uri) => {
-    if (!uri || typeof uri !== "string") return null;
-    if (Platform.OS === "web" && uri.startsWith("blob:")) return null;
-    return uri;
-  };
-
-  const handleSave = async () => {
-    try {
-      const safeImage = getSafeImageForHistory(image);
-
-      const newItem = {
-        id: Date.now().toString(),
-        image: safeImage,
-        disease,
-        confidence,
-        treatment,
-        description,
-        probabilities,
-        lowConfidence: lowConfidence || false,
-        savedAt: new Date().toLocaleString(),
-      };
-
-      const existing = await AsyncStorage.getItem("disease_history");
-      const history = existing ? JSON.parse(existing) : [];
-
-      history.unshift(newItem);
-
-      await AsyncStorage.setItem("disease_history", JSON.stringify(history));
-
-      if (Platform.OS === "web" && image?.startsWith("blob:")) {
-        Alert.alert(
-          "Saved",
-          "The result was saved. Image preview may not be available later on web for temporary uploaded images."
-        );
-      }
-
-      navigation.navigate("DiseaseHistory");
-    } catch (error) {
-      console.log("Save error:", error);
-      Alert.alert("Error", "Failed to save result.");
-    }
-  };
-
   const handleHistory = () => {
     navigation.navigate("DiseaseHistory");
   };
 
   const handleDetectAnother = () => {
+    navigation.navigate("DiseaseUpload");
+  };
+
+  const handleBackToUpload = () => {
     navigation.navigate("DiseaseUpload");
   };
 
@@ -161,12 +119,18 @@ export default function DiseaseResultScreen({ route, navigation }) {
             isWideScreen && styles.buttonGroupWide,
           ]}
         >
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>💾 Save Result</Text>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleHistory}
+          >
+            <Text style={styles.primaryButtonText}>📜 View History</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.historyButton} onPress={handleHistory}>
-            <Text style={styles.historyButtonText}>📜 View History</Text>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleBackToUpload}
+          >
+            <Text style={styles.secondaryButtonText}>⬆ Upload New Image</Text>
           </TouchableOpacity>
         </View>
 
@@ -394,7 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
 
-  saveButton: {
+  primaryButton: {
     flex: 1,
     backgroundColor: "#2d5016",
     paddingVertical: 16,
@@ -403,13 +367,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  saveButtonText: {
+  primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
   },
 
-  historyButton: {
+  secondaryButton: {
     flex: 1,
     backgroundColor: "#fff",
     borderWidth: 1.5,
@@ -420,7 +384,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  historyButtonText: {
+  secondaryButtonText: {
     color: "#2d5016",
     fontWeight: "700",
     fontSize: 16,

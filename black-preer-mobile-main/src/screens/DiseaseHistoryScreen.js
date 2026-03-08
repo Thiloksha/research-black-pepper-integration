@@ -9,27 +9,38 @@ import {
   Alert,
   Platform,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import axios from "axios";
 
 const { width } = Dimensions.get("window");
 
 const isSmallScreen = width < 480;
 const isWideScreen = width >= 768;
 
+const API_BASE_URL =
+  Platform.OS === "web"
+    ? "http://localhost:5001"
+    : "http://192.168.8.110:5001";
+
 export default function DiseaseHistoryScreen({ navigation }) {
   const [history, setHistory] = useState([]);
   const [hoveredId, setHoveredId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const loadHistory = async () => {
     try {
-      const stored = await AsyncStorage.getItem("disease_history");
-      const parsed = stored ? JSON.parse(stored) : [];
-      setHistory(Array.isArray(parsed) ? parsed : []);
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/api/detections`);
+      console.log("Loaded history:", response.data);
+      setHistory(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.log("History load error:", error);
+      Alert.alert("Error", "Failed to load detection history.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,6 +51,23 @@ export default function DiseaseHistoryScreen({ navigation }) {
   );
 
   const clearHistory = async () => {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete all saved results?"
+      );
+      if (!confirmed) return;
+
+      try {
+        console.log("Sending DELETE ALL request");
+        await axios.delete(`${API_BASE_URL}/api/detections`);
+        setHistory([]);
+      } catch (error) {
+        console.log("Clear history error:", error);
+        Alert.alert("Error", "Failed to clear history.");
+      }
+      return;
+    }
+
     Alert.alert(
       "Clear History",
       "Are you sure you want to delete all saved results?",
@@ -49,8 +77,62 @@ export default function DiseaseHistoryScreen({ navigation }) {
           text: "Clear",
           style: "destructive",
           onPress: async () => {
-            await AsyncStorage.removeItem("disease_history");
-            setHistory([]);
+            try {
+              console.log("Sending DELETE ALL request");
+              await axios.delete(`${API_BASE_URL}/api/detections`);
+              setHistory([]);
+            } catch (error) {
+              console.log("Clear history error:", error);
+              Alert.alert("Error", "Failed to clear history.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const deleteSingleItem = async (id) => {
+    console.log("Delete button clicked. ID =", id);
+
+    if (!id) {
+      Alert.alert("Error", "This item has no valid ID.");
+      return;
+    }
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this detection result?"
+      );
+      if (!confirmed) return;
+
+      try {
+        console.log("Sending DELETE request for ID =", id);
+        await axios.delete(`${API_BASE_URL}/api/detections/${id}`);
+        setHistory((prev) => prev.filter((item) => item.id !== id));
+      } catch (error) {
+        console.log("Delete single history error:", error);
+        Alert.alert("Error", "Failed to delete this result.");
+      }
+      return;
+    }
+
+    Alert.alert(
+      "Delete Result",
+      "Are you sure you want to delete this detection result?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Sending DELETE request for ID =", id);
+              await axios.delete(`${API_BASE_URL}/api/detections/${id}`);
+              setHistory((prev) => prev.filter((item) => item.id !== id));
+            } catch (error) {
+              console.log("Delete single history error:", error);
+              Alert.alert("Error", "Failed to delete this result.");
+            }
           },
         },
       ]
@@ -65,8 +147,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
   const isDisplayableImage = (uri) => {
     if (!uri || typeof uri !== "string") return false;
 
-    if (uri.startsWith("blob:")) return false;
-
     return (
       uri.startsWith("http://") ||
       uri.startsWith("https://") ||
@@ -76,9 +156,24 @@ export default function DiseaseHistoryScreen({ navigation }) {
     );
   };
 
+  const getFullImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+
+    if (
+      imagePath.startsWith("http://") ||
+      imagePath.startsWith("https://") ||
+      imagePath.startsWith("file://") ||
+      imagePath.startsWith("data:image/")
+    ) {
+      return imagePath;
+    }
+
+    return `${API_BASE_URL}${imagePath}`;
+  };
+
   const handleOpenItem = (item) => {
     navigation.navigate("DiseaseResult", {
-      image: item.image,
+      image: getFullImageUrl(item.image),
       disease: item.disease,
       confidence: item.confidence,
       treatment: item.treatment,
@@ -110,7 +205,12 @@ export default function DiseaseHistoryScreen({ navigation }) {
       </LinearGradient>
 
       <View style={styles.content}>
-        {history.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#2d5016" />
+            <Text style={styles.loadingText}>Loading detection history...</Text>
+          </View>
+        ) : history.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>🗂️</Text>
             <Text style={styles.emptyTitle}>No Saved Results Yet</Text>
@@ -151,7 +251,10 @@ export default function DiseaseHistoryScreen({ navigation }) {
             </Text>
 
             {history.map((item, index) => {
-              const canShowImage = isDisplayableImage(item.image);
+              console.log("History item:", item);
+
+              const fullImageUrl = getFullImageUrl(item.image);
+              const canShowImage = isDisplayableImage(fullImageUrl);
               const cardKey = item.id ?? `${item.savedAt ?? "item"}-${index}`;
 
               return (
@@ -165,13 +268,9 @@ export default function DiseaseHistoryScreen({ navigation }) {
                     Platform.OS === "web" && setHoveredId(null)
                   }
                 >
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    style={styles.card}
-                    onPress={() => handleOpenItem(item)}
-                  >
+                  <View style={styles.card}>
                     {canShowImage ? (
-                      <Image source={{ uri: item.image }} style={styles.image} />
+                      <Image source={{ uri: fullImageUrl }} style={styles.image} />
                     ) : (
                       <View style={styles.imagePlaceholder}>
                         <Text style={styles.imagePlaceholderIcon}>🖼️</Text>
@@ -207,19 +306,32 @@ export default function DiseaseHistoryScreen({ navigation }) {
                         {getShortDescription(item.description)}
                       </Text>
 
-                      {!canShowImage && Platform.OS === "web" && (
-                        <Text style={styles.previewWarning}>
-                          Image preview is unavailable for temporary web uploads.
-                        </Text>
-                      )}
-
                       <View style={styles.cardFooter}>
-                        <View style={styles.openButton}>
-                          <Text style={styles.openButtonText}>View Details</Text>
+                        <View style={styles.actionButtonsRow}>
+                          <TouchableOpacity
+                            style={styles.openButton}
+                            onPress={() => handleOpenItem(item)}
+                            activeOpacity={0.85}
+                          >
+                            <Text style={styles.openButtonText}>View Details</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.deleteItemButton}
+                            onPress={() => {
+                              console.log("Pressed delete for item:", item);
+                              deleteSingleItem(item.id);
+                            }}
+                            activeOpacity={0.85}
+                          >
+                            <Text style={styles.deleteItemButtonText}>
+                              Delete
+                            </Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
                     </View>
-                  </TouchableOpacity>
+                  </View>
 
                   {Platform.OS === "web" && hoveredId === item.id && (
                     <View style={styles.tooltip}>
@@ -303,6 +415,22 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 980,
     alignSelf: "center",
+  },
+
+  loadingCard: {
+    backgroundColor: "#ffffff",
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#dceccf",
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#555",
   },
 
   emptyCard: {
@@ -494,16 +622,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  previewWarning: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#8a6d3b",
-    lineHeight: 16,
-  },
-
   cardFooter: {
     marginTop: 12,
     alignItems: "flex-start",
+  },
+
+  actionButtonsRow: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
   },
 
   openButton: {
@@ -517,6 +644,21 @@ const styles = StyleSheet.create({
 
   openButtonText: {
     color: "#2d5016",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  deleteItemButton: {
+    backgroundColor: "#fff1ef",
+    borderWidth: 1,
+    borderColor: "#f2b8b5",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+
+  deleteItemButtonText: {
+    color: "#c0392b",
     fontSize: 13,
     fontWeight: "700",
   },
