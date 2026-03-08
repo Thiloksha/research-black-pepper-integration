@@ -18,54 +18,117 @@ import { Ionicons } from '@expo/vector-icons';
 export default function VarietyHistoryScreen() {
   const [history, setHistory] = useState([]);
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 900;
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Responsive breakpoints
+  const isSmall = width < 480;    // phone portrait
+  const isMedium = width >= 480 && width < 768; // phone landscape / small tablet
+  const isLarge = width >= 768 && width < 1100; // tablet
+  const isXLarge = width >= 1100; // desktop / large tablet
+
+  // Number of columns per breakpoint
+  const numColumns = isSmall ? 1 : isMedium ? 2 : isLarge ? 2 : 3;
+
+  // Card width calculation: subtract page padding and gaps
+  const pagePadding = isSmall ? 16 : 24;
+  const cardGap = isSmall ? 12 : 16;
+  const availableWidth = Math.min(width - pagePadding * 2, 1180);
+  const cardWidth = numColumns === 1
+    ? availableWidth
+    : (availableWidth - cardGap * (numColumns - 1)) / numColumns;
 
   const loadHistory = async () => {
     try {
       const stored = await AsyncStorage.getItem('scanHistory');
       const parsed = stored ? JSON.parse(stored) : [];
-      setHistory(parsed);
+
+      const valid = parsed.filter(
+        (item) =>
+          item &&
+          item.image &&
+          item.timestamp &&
+          item.result &&
+          item.result !== 'Unknown Variety'
+      );
+
+      if (valid.length !== parsed.length) {
+        await AsyncStorage.setItem('scanHistory', JSON.stringify(valid));
+      }
+
+      setHistory(valid);
     } catch (e) {
       console.log('Error loading history:', e);
     }
   };
 
   const clearHistory = async () => {
-    Alert.alert(
-      'Clear History',
-      'Are you sure you want to delete all scan history?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.removeItem('scanHistory');
-            setHistory([]);
+    try {
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm('Are you sure you want to delete all scan history?');
+        if (!confirmed) return;
+        await AsyncStorage.removeItem('scanHistory');
+        setHistory([]);
+        return;
+      }
+
+      Alert.alert(
+        'Clear History',
+        'Are you sure you want to delete all scan history?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await AsyncStorage.removeItem('scanHistory');
+                setHistory([]);
+              } catch (e) {
+                console.log('Error clearing history:', e);
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } catch (e) {
+      console.log('Error clearing history:', e);
+    }
   };
 
-  const deleteItem = async (id) => {
-    Alert.alert(
-      "Delete Record",
-      "Do you want to remove this scan from history?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const updated = history.filter((item) => item.id !== id);
-            setHistory(updated);
-            await AsyncStorage.setItem("scanHistory", JSON.stringify(updated));
+  const deleteItem = async (index) => {
+    try {
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm('Do you want to remove this scan from history?');
+        if (!confirmed) return;
+        const updated = history.filter((_, i) => i !== index);
+        setHistory(updated);
+        await AsyncStorage.setItem('scanHistory', JSON.stringify(updated));
+        return;
+      }
+
+      Alert.alert(
+        'Delete Record',
+        'Do you want to remove this scan from history?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const updated = history.filter((_, i) => i !== index);
+                setHistory(updated);
+                await AsyncStorage.setItem('scanHistory', JSON.stringify(updated));
+              } catch (e) {
+                console.log('Error deleting item:', e);
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } catch (e) {
+      console.log('Error deleting item:', e);
+    }
   };
 
   useFocusEffect(
@@ -74,14 +137,22 @@ export default function VarietyHistoryScreen() {
     }, [])
   );
 
+  const imageHeight = isSmall ? 180 : isMedium ? 160 : 200;
+
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
         <LinearGradient
           colors={['#dbeadf', '#c7ddce', '#b4cfbc']}
           style={styles.gradient}
         >
-          <View style={styles.page}>
+          <View style={[styles.page, { paddingHorizontal: pagePadding }]}>
+
+            {/* Hero Section */}
             <View style={styles.heroSection}>
               <View style={styles.heroBadge}>
                 <Ionicons name="time-outline" size={16} color="#1f6f43" />
@@ -92,44 +163,42 @@ export default function VarietyHistoryScreen() {
                 <Ionicons name="document-text-outline" size={32} color="#1c5636" />
               </View>
 
-              <Text style={styles.title}>Scan History</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, isSmall && { fontSize: 24 }]}>Scan History</Text>
+              <Text style={[styles.subtitle, isSmall && { fontSize: 13 }]}>
                 Review previously identified black pepper leaf scans, including
                 prediction confidence, stage details, and scan timestamps.
               </Text>
             </View>
 
+            {/* Content */}
             <View style={styles.contentWrapper}>
-              <View style={styles.topCard}>
-                <View style={styles.topCardLeft}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionIconWrap}>
-                      <Ionicons name="albums-outline" size={18} color="#1f6f43" />
-                    </View>
-                    <View>
-                      <Text style={styles.sectionTitle}>Stored Scan Records</Text>
-                      <Text style={styles.sectionSubtitle}>
-                        Total scans: {history.length}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
 
-                <TouchableOpacity
-                  style={styles.clearButton}
-                  onPress={clearHistory}
-                  activeOpacity={0.88}
-                >
-                  <Ionicons
-                    name="trash-outline"
-                    size={18}
-                    color="#fff"
-                    style={styles.clearButtonIcon}
-                  />
-                  <Text style={styles.clearButtonText}>Clear History</Text>
-                </TouchableOpacity>
+              {/* Top Card */}
+              <View style={[styles.topCard, isSmall && styles.topCardSmall]}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIconWrap}>
+                    <Ionicons name="albums-outline" size={18} color="#1f6f43" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.sectionTitle, isSmall && { fontSize: 16 }]}>
+                      Stored Scan Records
+                    </Text>
+                    <Text style={styles.sectionSubtitle}>
+                      Total scans: {history.length}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.clearButton, isSmall && styles.clearButtonSmall]}
+                    onPress={clearHistory}
+                    activeOpacity={0.88}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#fff" style={{ marginRight: isSmall ? 0 : 8 }} />
+                    {!isSmall && <Text style={styles.clearButtonText}>Clear History</Text>}
+                  </TouchableOpacity>
+                </View>
               </View>
 
+              {/* Empty State */}
               {history.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <View style={styles.emptyIconWrap}>
@@ -142,28 +211,64 @@ export default function VarietyHistoryScreen() {
                   </Text>
                 </View>
               ) : (
-                <View style={[styles.historyGrid, isLargeScreen && styles.historyGridLarge]}>
+                <View
+                  style={[
+                    styles.historyGrid,
+                    numColumns > 1 && {
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      gap: cardGap,
+                    },
+                  ]}
+                >
                   {history.map((item, index) => (
-                    <View key={item.id || `${item.timestamp}-${index}`} style={styles.historyCard}>
+                    <View
+                      key={item.id || `${item.timestamp}-${index}`}
+                      style={[
+                        styles.historyCard,
+                        { width: cardWidth },
+                        numColumns === 1 && { marginBottom: cardGap },
+                      ]}
+                    >
+                      {/* Image */}
                       <View style={styles.historyImageWrap}>
                         {item.image ? (
-                          <Image source={{ uri: item.image }} style={styles.historyImage} />
+                          <Image
+                            source={{ uri: item.image }}
+                            style={[styles.historyImage, { height: imageHeight }]}
+                          />
                         ) : (
-                          <View style={styles.historyImageFallback}>
+                          <View style={[styles.historyImageFallback, { height: imageHeight }]}>
                             <Ionicons name="image-outline" size={28} color="#7b9485" />
                           </View>
                         )}
                       </View>
 
+                      {/* Info */}
                       <View style={styles.historyInfo}>
                         <View style={styles.historyHeaderRow}>
                           <View style={styles.resultBadge}>
-                            <Ionicons name="leaf-outline" size={14} color="#fff" />
+                            <Ionicons name="leaf-outline" size={13} color="#fff" />
                             <Text style={styles.resultBadgeText}>Prediction</Text>
                           </View>
+
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => deleteItem(index)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#b3261e" />
+                          </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.historyResult}>
+                        <Text
+                          style={[
+                            styles.historyResult,
+                            isSmall && { fontSize: 18 },
+                            isMedium && { fontSize: 16 },
+                          ]}
+                          numberOfLines={2}
+                        >
                           {item.result || 'Unknown Variety'}
                         </Text>
 
@@ -174,7 +279,6 @@ export default function VarietyHistoryScreen() {
                               {item.confidence ?? '--'}%
                             </Text>
                           </View>
-
                           <View style={styles.metricChip}>
                             <Text style={styles.metricChipLabel}>Stage</Text>
                             <Text style={styles.metricChipValue}>
@@ -186,21 +290,15 @@ export default function VarietyHistoryScreen() {
                         <View style={styles.timestampRow}>
                           <Ionicons
                             name="calendar-outline"
-                            size={14}
+                            size={13}
                             color="#6f8578"
                             style={{ marginRight: 6 }}
                           />
-                          <Text style={styles.historyDate}>
+                          <Text style={styles.historyDate} numberOfLines={1}>
                             {item.timestamp || 'No timestamp'}
                           </Text>
                         </View>
                       </View>
-                      <TouchableOpacity
-                        style={styles.deleteButton}
-                        onPress={() => deleteItem(item.id)}
-                      >
-                        <Ionicons name="trash-outline" size={18} color="#b3261e" />
-                      </TouchableOpacity>
                     </View>
                   ))}
                 </View>
@@ -245,7 +343,6 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingVertical: 30,
-    paddingHorizontal: 16,
   },
   heroSection: {
     width: '100%',
@@ -304,14 +401,15 @@ const styles = StyleSheet.create({
   topCard: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    padding: 22,
+    padding: 20,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#eaf3ed',
     ...shadowStyle,
   },
-  topCardLeft: {
-    marginBottom: 16,
+  topCardSmall: {
+    padding: 14,
+    borderRadius: 18,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -327,32 +425,33 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#163a28',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sectionSubtitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     color: '#6f8578',
-    lineHeight: 20,
   },
   clearButton: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#be1a11',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginLeft: 12,
   },
-  clearButtonIcon: {
-    marginRight: 8,
+  clearButtonSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   clearButtonText: {
     color: '#ffffff',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
   },
   emptyCard: {
     backgroundColor: '#ffffff',
@@ -387,39 +486,28 @@ const styles = StyleSheet.create({
     maxWidth: 420,
   },
   historyGrid: {
-    gap: 14,
-  },
-  historyGridLarge: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    width: '100%',
   },
   historyCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 20,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#e8f1ea',
     ...shadowStyle,
   },
-  historyCardLarge: {
-    width: '49%',
-    marginBottom: 14,
-  },
   historyImageWrap: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   historyImage: {
     width: '100%',
-    height: 210,
-    borderRadius: 18,
+    borderRadius: 14,
     resizeMode: 'cover',
     backgroundColor: '#edf3ee',
   },
   historyImageFallback: {
     width: '100%',
-    height: 210,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: '#f4f8f5',
     justifyContent: 'center',
     alignItems: 'center',
@@ -431,73 +519,72 @@ const styles = StyleSheet.create({
   },
   historyHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   resultBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#2e7d4f',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
   },
   resultBadgeText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
-    marginLeft: 6,
+    marginLeft: 5,
   },
   historyResult: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#173725',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   metricsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   metricChip: {
     flex: 1,
-    minWidth: 120,
+    minWidth: 80,
     backgroundColor: '#f8fbf9',
     borderWidth: 1,
     borderColor: '#e5efe8',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 12,
+    padding: 10,
   },
   metricChipLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6f8578',
-    marginBottom: 4,
+    marginBottom: 3,
     fontWeight: '700',
   },
   metricChipValue: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#1f6f43',
     fontWeight: '800',
   },
   timestampRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
   },
   historyDate: {
-    fontSize: 12.5,
+    fontSize: 12,
     color: '#708579',
     lineHeight: 18,
     flex: 1,
   },
   deleteButton: {
-    position: 'absolute',
-    bottom: 5,
-    right: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#fdecea',
-    borderRadius: 10,
-    padding: 7,
+    borderRadius: 8,
+    padding: 6,
     borderWidth: 1,
     borderColor: '#f5c2c0',
   },
