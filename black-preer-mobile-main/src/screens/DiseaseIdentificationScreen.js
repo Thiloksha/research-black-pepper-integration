@@ -60,14 +60,16 @@ export default function DiseaseIdentificationScreen({ navigation }) {
             onPress={handleStartDetection}
             activeOpacity={0.85}
           >
-            <Text style={styles.actionEmoji}>📸</Text>
-            <Text style={styles.primaryCardTitle}>Start Detection</Text>
-            <Text style={styles.primaryCardText}>
-              Upload a leaf image and get an AI-powered disease detection result.
-            </Text>
+            <View style={styles.cardInner}>
+              <Text style={styles.actionEmoji}>📸</Text>
+              <Text style={styles.primaryCardTitle}>Start Detection</Text>
+              <Text style={styles.primaryCardText}>
+                Upload a leaf image and get an AI-powered disease detection result.
+              </Text>
 
-            <View style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Open Detection</Text>
+              <View style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>Open Detection</Text>
+              </View>
             </View>
           </TouchableOpacity>
 
@@ -76,14 +78,17 @@ export default function DiseaseIdentificationScreen({ navigation }) {
             onPress={handleViewHistory}
             activeOpacity={0.85}
           >
-            <Text style={styles.actionEmoji}>🕘</Text>
-            <Text style={styles.secondaryCardTitle}>View History</Text>
-            <Text style={styles.secondaryCardText}>
-              Check your previous detections and review past disease analysis records.
-            </Text>
+            <View style={styles.cardInner}>
+              <Text style={styles.actionEmoji}>🕘</Text>
+              <Text style={styles.secondaryCardTitle}>View History</Text>
+              <Text style={styles.secondaryCardText}>
+                Check your previous detections and review past disease analysis
+                records.
+              </Text>
 
-            <View style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Open History</Text>
+              <View style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Open History</Text>
+              </View>
             </View>
           </TouchableOpacity>
         </View>
@@ -181,13 +186,19 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: isSmallScreen ? 16 : 22,
     padding: isSmallScreen ? 16 : isMediumScreen ? 18 : 22,
-    minHeight: isSmallScreen ? 180 : isMediumScreen ? 200 : 220,
-    justifyContent: 'space-between',
+    minHeight: isSmallScreen ? 190 : isMediumScreen ? 210 : 230,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+  },
+
+  cardInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
   },
 
   primaryCard: {
@@ -205,6 +216,7 @@ const styles = StyleSheet.create({
   actionEmoji: {
     fontSize: isSmallScreen ? 26 : isMediumScreen ? 30 : 34,
     marginBottom: isSmallScreen ? 10 : 14,
+    textAlign: 'center',
   },
 
   primaryCardTitle: {
@@ -212,6 +224,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1f3d0f',
     marginBottom: 8,
+    textAlign: 'center',
   },
 
   secondaryCardTitle: {
@@ -219,6 +232,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#2d5016',
     marginBottom: 8,
+    textAlign: 'center',
   },
 
   primaryCardText: {
@@ -226,6 +240,8 @@ const styles = StyleSheet.create({
     color: '#35521f',
     lineHeight: isSmallScreen ? 19 : 22,
     marginBottom: 14,
+    textAlign: 'center',
+    maxWidth: 320,
   },
 
   secondaryCardText: {
@@ -233,33 +249,43 @@ const styles = StyleSheet.create({
     color: '#5f6368',
     lineHeight: isSmallScreen ? 19 : 22,
     marginBottom: 14,
+    textAlign: 'center',
+    maxWidth: 320,
   },
 
   primaryButton: {
     backgroundColor: '#2d5016',
     paddingVertical: isSmallScreen ? 11 : 13,
+    paddingHorizontal: isSmallScreen ? 18 : 24,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: isSmallScreen ? 140 : 160,
   },
 
   primaryButtonText: {
     color: '#fff',
     fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '700',
+    textAlign: 'center',
   },
 
   secondaryButton: {
     backgroundColor: '#ffffff',
     paddingVertical: isSmallScreen ? 11 : 13,
+    paddingHorizontal: isSmallScreen ? 18 : 24,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#cfd8dc',
+    minWidth: isSmallScreen ? 140 : 160,
   },
 
   secondaryButtonText: {
     color: '#2d5016',
     fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '700',
+    textAlign: 'center',
   },
 });
