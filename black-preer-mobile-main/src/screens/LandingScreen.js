@@ -15,6 +15,10 @@ export default function LandingScreen({ navigation }) {
         navigation.navigate('SoilAnalysis');
     };
 
+    const handleDiseaseIdentification = () => {
+        navigation.navigate('DiseaseIdentification');
+    };
+
     return (
         <LinearGradient
             colors={['#1a3409', '#2d5016', '#1a3409']}
@@ -56,6 +60,17 @@ export default function LandingScreen({ navigation }) {
                     >
                         <Text style={styles.buttonIcon}>🌱</Text>
                         <Text style={styles.primaryButtonText}>Recommend Fertilizer</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={handleDiseaseIdentification}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.buttonIcon}>🦠</Text>
+                        <Text style={styles.primaryButtonText}>
+                            Identify Diseases in Leaves
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </View>
