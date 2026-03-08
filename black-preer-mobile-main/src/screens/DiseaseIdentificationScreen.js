@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -7,65 +7,20 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
-const howItWorksData = [
-  {
-    id: 1,
-    emoji: '📸',
-    title: 'Capture Leaf Image',
-    description: 'Take a clear photo of the black pepper leaf',
-  },
-  {
-    id: 2,
-    emoji: '🧠',
-    title: 'AI Disease Analysis',
-    description: 'The model analyzes symptoms, colors, and patterns',
-  },
-  {
-    id: 3,
-    emoji: '📋',
-    title: 'Get Prediction',
-    description: 'View disease type and confidence score',
-  },
-  {
-    id: 4,
-    emoji: '🌱',
-    title: 'Take Action',
-    description: 'Use the result for better treatment decisions',
-  },
-];
+const isSmallScreen = width < 480;
+const isMediumScreen = width >= 480 && width < 768;
+const isWideScreen = width >= 768;
 
 export default function DiseaseIdentificationScreen({ navigation }) {
-  const sliderRef = useRef(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
-
   const handleStartDetection = () => {
     navigation.navigate('DiseaseUpload');
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const nextSlide =
-        currentSlide === howItWorksData.length - 1 ? 0 : currentSlide + 1;
-
-      setCurrentSlide(nextSlide);
-
-      sliderRef.current?.scrollTo({
-        x: nextSlide * width,
-        animated: true,
-      });
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [currentSlide]);
-
-  const handleManualScroll = (event) => {
-    const slideWidth = width;
-    const index = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
-    setCurrentSlide(index);
+  const handleViewHistory = () => {
+    navigation.navigate('DiseaseHistory');
   };
 
   return (
@@ -73,8 +28,10 @@ export default function DiseaseIdentificationScreen({ navigation }) {
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <View style={styles.heroContent}>
+          <Text style={styles.heroBadge}>Black Pepper AI</Text>
+
           <Text style={styles.heroTitle}>
-            AI-Powered Black Pepper Leaf{'\n'}Disease Identification
+            Black Pepper Leaf{'\n'}Disease Identification
           </Text>
 
           <Text style={styles.heroSubtitle}>
@@ -85,70 +42,52 @@ export default function DiseaseIdentificationScreen({ navigation }) {
         </View>
       </View>
 
-      {/* How It Works Slider */}
-      <View style={styles.howItWorksSection}>
-        <Text style={styles.sectionTitle}>How It Works</Text>
-
+      {/* Quick Actions */}
+      <View style={styles.actionsSection}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
         <Text style={styles.sectionSubtitle}>
-          Follow these simple steps to identify black pepper leaf diseases
+          Choose an option to start a new detection or review previous results
         </Text>
 
-        <View style={styles.sliderWrapper}>
-          <ScrollView
-            ref={sliderRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleManualScroll}
+        <View
+          style={[
+            styles.actionsContainer,
+            isWideScreen && styles.actionsContainerWide,
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.actionCard, styles.primaryCard]}
+            onPress={handleStartDetection}
+            activeOpacity={0.85}
           >
-            {howItWorksData.map((item) => (
-              <View key={item.id} style={styles.slidePage}>
-                <View style={styles.slideCard}>
-                  <Text style={styles.howCardEmoji}>{item.emoji}</Text>
-                  <Text style={styles.howCardTitle}>{item.title}</Text>
-                  <Text style={styles.howCardDescription}>
-                    {item.description}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+            <Text style={styles.actionEmoji}>📸</Text>
+            <Text style={styles.primaryCardTitle}>Start Detection</Text>
+            <Text style={styles.primaryCardText}>
+              Upload a leaf image and get an AI-powered disease detection result.
+            </Text>
 
-        <View style={styles.dotsContainer}>
-          {howItWorksData.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                currentSlide === index ? styles.activeDot : styles.inactiveDot,
-              ]}
-            />
-          ))}
+            <View style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Open Detection</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionCard, styles.secondaryCard]}
+            onPress={handleViewHistory}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.actionEmoji}>🕘</Text>
+            <Text style={styles.secondaryCardTitle}>View History</Text>
+            <Text style={styles.secondaryCardText}>
+              Check your previous detections and review past disease analysis records.
+            </Text>
+
+            <View style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Open History</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
-
-      {/* CTA Section */}
-      <LinearGradient
-        colors={['#3d6b1f', '#1a3409']}
-        style={styles.ctaSection}
-      >
-        <Text style={styles.ctaTitle}>
-          Ready to Identify Black Pepper Leaf Diseases?
-        </Text>
-
-        <Text style={styles.ctaSubtitle}>
-          Start your AI-powered disease detection now
-        </Text>
-
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={handleStartDetection}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.ctaButtonText}>Detect Disease Now →</Text>
-        </TouchableOpacity>
-      </LinearGradient>
     </ScrollView>
   );
 }
@@ -156,159 +95,171 @@ export default function DiseaseIdentificationScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
   },
 
   heroSection: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    paddingTop: isSmallScreen ? 32 : isMediumScreen ? 44 : 60,
+    paddingBottom: isSmallScreen ? 24 : isMediumScreen ? 28 : 36,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
     backgroundColor: '#f5f9f4',
   },
 
   heroContent: {
     alignItems: 'center',
+    alignSelf: 'center',
+    maxWidth: 900,
+  },
+
+  heroBadge: {
+    backgroundColor: '#dcefdc',
+    color: '#2d5016',
+    fontSize: isSmallScreen ? 10 : 12,
+    fontWeight: '700',
+    paddingHorizontal: isSmallScreen ? 10 : 12,
+    paddingVertical: isSmallScreen ? 5 : 6,
+    borderRadius: 20,
+    marginBottom: isSmallScreen ? 12 : 16,
+    overflow: 'hidden',
   },
 
   heroTitle: {
-    fontSize: 28,
+    fontSize: isSmallScreen ? 20 : isMediumScreen ? 24 : 28,
     fontWeight: '900',
     color: '#2d5016',
     textAlign: 'center',
-    marginBottom: 15,
-    lineHeight: 36,
+    marginBottom: 12,
+    lineHeight: isSmallScreen ? 28 : isMediumScreen ? 32 : 36,
   },
 
   heroSubtitle: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 13 : isMediumScreen ? 15 : 16,
     color: '#2d5016',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
     opacity: 0.8,
+    maxWidth: 760,
+    paddingHorizontal: isSmallScreen ? 4 : 0,
+  },
+
+  actionsSection: {
+    paddingVertical: isSmallScreen ? 20 : 28,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
+    backgroundColor: '#ffffff',
   },
 
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+    fontWeight: '800',
     color: '#2d5016',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 25,
-    paddingHorizontal: 20,
-    lineHeight: 20,
+    lineHeight: isSmallScreen ? 18 : 20,
+    marginBottom: isSmallScreen ? 18 : 24,
+    paddingHorizontal: 10,
   },
 
-  howItWorksSection: {
-    paddingVertical: 25,
-    backgroundColor: '#f8f9fa',
-  },
-
-  sliderWrapper: {
-    height: 260,
-  },
-
-  slidePage: {
-    width: width,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-
-  slideCard: {
+  actionsContainer: {
+    flexDirection: 'column',
+    gap: isSmallScreen ? 12 : 16,
     width: '100%',
-    backgroundColor: '#fff',
-    paddingVertical: 35,
-    paddingHorizontal: 25,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
+    maxWidth: 980,
+    alignSelf: 'center',
+  },
+
+  actionsContainerWide: {
+    flexDirection: 'row',
+  },
+
+  actionCard: {
+    flex: 1,
+    borderRadius: isSmallScreen ? 16 : 22,
+    padding: isSmallScreen ? 16 : isMediumScreen ? 18 : 22,
+    minHeight: isSmallScreen ? 180 : isMediumScreen ? 200 : 220,
+    justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
 
-  howCardEmoji: {
-    fontSize: 48,
-    marginBottom: 15,
+  primaryCard: {
+    backgroundColor: '#eef8e8',
+    borderWidth: 1,
+    borderColor: '#d8ebcb',
   },
 
-  howCardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  secondaryCard: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+
+  actionEmoji: {
+    fontSize: isSmallScreen ? 26 : isMediumScreen ? 30 : 34,
+    marginBottom: isSmallScreen ? 10 : 14,
+  },
+
+  primaryCardTitle: {
+    fontSize: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+    fontWeight: '800',
+    color: '#1f3d0f',
+    marginBottom: 8,
+  },
+
+  secondaryCardTitle: {
+    fontSize: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+    fontWeight: '800',
     color: '#2d5016',
-    marginBottom: 10,
-    textAlign: 'center',
+    marginBottom: 8,
   },
 
-  howCardDescription: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 22,
+  primaryCardText: {
+    fontSize: isSmallScreen ? 13 : 15,
+    color: '#35521f',
+    lineHeight: isSmallScreen ? 19 : 22,
+    marginBottom: 14,
   },
 
-  dotsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 18,
+  secondaryCardText: {
+    fontSize: isSmallScreen ? 13 : 15,
+    color: '#5f6368',
+    lineHeight: isSmallScreen ? 19 : 22,
+    marginBottom: 14,
   },
 
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginHorizontal: 5,
-  },
-
-  activeDot: {
+  primaryButton: {
     backgroundColor: '#2d5016',
-    width: 22,
-  },
-
-  inactiveDot: {
-    backgroundColor: '#cfd8dc',
-  },
-
-  ctaSection: {
-    padding: 40,
+    paddingVertical: isSmallScreen ? 11 : 13,
+    borderRadius: 12,
     alignItems: 'center',
   },
 
-  ctaTitle: {
-    fontSize: 22,
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 15,
   },
 
-  ctaSubtitle: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 25,
-    opacity: 0.9,
+  secondaryButton: {
+    backgroundColor: '#ffffff',
+    paddingVertical: isSmallScreen ? 11 : 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#cfd8dc',
   },
 
-  ctaButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 50,
-    elevation: 5,
-  },
-
-  ctaButtonText: {
+  secondaryButtonText: {
     color: '#2d5016',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: isSmallScreen ? 13 : 15,
+    fontWeight: '700',
   },
 });

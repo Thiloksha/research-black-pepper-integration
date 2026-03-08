@@ -21,7 +21,7 @@ export default function DiseaseHistoryScreen({ navigation }) {
     try {
       const stored = await AsyncStorage.getItem("disease_history");
       const parsed = stored ? JSON.parse(stored) : [];
-      setHistory(parsed);
+      setHistory(Array.isArray(parsed) ? parsed : []);
     } catch (error) {
       console.log("History load error:", error);
     }
@@ -56,10 +56,26 @@ export default function DiseaseHistoryScreen({ navigation }) {
     return text.length > 65 ? `${text.slice(0, 65)}...` : text;
   };
 
+  const isDisplayableImage = (uri) => {
+    if (!uri || typeof uri !== "string") return false;
+
+    if (uri.startsWith("blob:")) {
+      return false;
+    }
+
+    return (
+      uri.startsWith("http://") ||
+      uri.startsWith("https://") ||
+      uri.startsWith("file://") ||
+      uri.startsWith("data:image/") ||
+      uri.startsWith("/")
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <LinearGradient
-        colors={['#1a3409', '#2d5016', '#1a3409']}
+        colors={["#1a3409", "#2d5016", "#1a3409"]}
         style={styles.header}
       >
         <Text style={styles.title}>Detection History</Text>
@@ -79,66 +95,97 @@ export default function DiseaseHistoryScreen({ navigation }) {
               <Text style={styles.clearButtonText}>🗑 Clear History</Text>
             </TouchableOpacity>
 
-            {history.map((item) => (
-              <View
-                key={item.id}
-                style={styles.cardWrapper}
-                onMouseEnter={() => Platform.OS === "web" && setHoveredId(item.id)}
-                onMouseLeave={() => Platform.OS === "web" && setHoveredId(null)}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  style={styles.card}
-                  onPress={() =>
-                    navigation.navigate("DiseaseResult", {
-                      image: item.image,
-                      disease: item.disease,
-                      confidence: item.confidence,
-                      treatment: item.treatment,
-                      description: item.description,
-                      probabilities: item.probabilities,
-                      lowConfidence: item.lowConfidence,
-                    })
+            {history.map((item, index) => {
+              const canShowImage = isDisplayableImage(item.image);
+              const cardKey = item.id ?? `${item.savedAt ?? "item"}-${index}`;
+
+              return (
+                <View
+                  key={cardKey}
+                  style={styles.cardWrapper}
+                  onMouseEnter={() =>
+                    Platform.OS === "web" && setHoveredId(item.id)
+                  }
+                  onMouseLeave={() =>
+                    Platform.OS === "web" && setHoveredId(null)
                   }
                 >
-                  <Image source={{ uri: item.image }} style={styles.image} />
-
-                  <View style={styles.cardContent}>
-                    <Text style={styles.disease}>{item.disease}</Text>
-                    <Text style={styles.text}>Confidence: {item.confidence}</Text>
-                    <Text style={styles.text}>Saved: {item.savedAt}</Text>
-                    <Text style={styles.shortDesc}>
-                      {getShortDescription(item.description)}
-                    </Text>
-
-                    {item.lowConfidence && (
-                      <Text style={styles.lowConfidenceText}>
-                        ⚠ Low confidence result
-                      </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    style={styles.card}
+                    onPress={() =>
+                      navigation.navigate("DiseaseResult", {
+                        image: item.image,
+                        disease: item.disease,
+                        confidence: item.confidence,
+                        treatment: item.treatment,
+                        description: item.description,
+                        probabilities: item.probabilities,
+                        lowConfidence: item.lowConfidence,
+                      })
+                    }
+                  >
+                    {canShowImage ? (
+                      <Image source={{ uri: item.image }} style={styles.image} />
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Text style={styles.imagePlaceholderIcon}>🖼️</Text>
+                        <Text style={styles.imagePlaceholderText}>
+                          Preview unavailable
+                        </Text>
+                      </View>
                     )}
-                  </View>
-                </TouchableOpacity>
 
-                {Platform.OS === "web" && hoveredId === item.id && (
-                  <View style={styles.tooltip}>
-                    <Text style={styles.tooltipTitle}>Full Details</Text>
-                    <Text style={styles.tooltipText}>
-                      <Text style={styles.tooltipLabel}>Description: </Text>
-                      {item.description || "No description"}
-                    </Text>
-                    <Text style={styles.tooltipText}>
-                      <Text style={styles.tooltipLabel}>Treatment: </Text>
-                      {item.treatment || "No treatment advice"}
-                    </Text>
-                    {item.lowConfidence && (
-                      <Text style={styles.tooltipWarning}>
-                        ⚠ This was saved as a low-confidence / possible early infection result.
+                    <View style={styles.cardContent}>
+                      <Text style={styles.disease}>
+                        {item.disease || "Unknown disease"}
                       </Text>
-                    )}
-                  </View>
-                )}
-              </View>
-            ))}
+                      <Text style={styles.text}>
+                        Confidence: {item.confidence || "N/A"}
+                      </Text>
+                      <Text style={styles.text}>
+                        Saved: {item.savedAt || "Unknown date"}
+                      </Text>
+                      <Text style={styles.shortDesc}>
+                        {getShortDescription(item.description)}
+                      </Text>
+
+                      {!canShowImage && Platform.OS === "web" && (
+                        <Text style={styles.previewWarning}>
+                          Web preview is unavailable for temporary uploaded images.
+                        </Text>
+                      )}
+
+                      {item.lowConfidence && (
+                        <Text style={styles.lowConfidenceText}>
+                          ⚠ Low confidence result
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  {Platform.OS === "web" && hoveredId === item.id && (
+                    <View style={styles.tooltip}>
+                      <Text style={styles.tooltipTitle}>Full Details</Text>
+                      <Text style={styles.tooltipText}>
+                        <Text style={styles.tooltipLabel}>Description: </Text>
+                        {item.description || "No description"}
+                      </Text>
+                      <Text style={styles.tooltipText}>
+                        <Text style={styles.tooltipLabel}>Treatment: </Text>
+                        {item.treatment || "No treatment advice"}
+                      </Text>
+                      {item.lowConfidence && (
+                        <Text style={styles.tooltipWarning}>
+                          ⚠ This was saved as a low-confidence / possible early
+                          infection result.
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </>
         )}
       </View>
@@ -211,6 +258,25 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 12,
   },
+  imagePlaceholder: {
+    width: 110,
+    height: 110,
+    borderRadius: 12,
+    backgroundColor: "#eef3ea",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+  },
+  imagePlaceholderIcon: {
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  imagePlaceholderText: {
+    fontSize: 11,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 14,
+  },
   cardContent: {
     flex: 1,
   },
@@ -230,6 +296,12 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 6,
     lineHeight: 20,
+  },
+  previewWarning: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#8a6d3b",
+    lineHeight: 16,
   },
   lowConfidenceText: {
     marginTop: 8,
