@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DetectionStatus {
+  SUCCESS
+  REJECTED
+  FAILED
+}
+
+model DiseaseDetection {
+  id               String   @id @default(uuid())
+
+  imageUrl         String?
+  imageName        String?
+  imageMimeType    String?
+  imageSizeBytes   Int?
+
+  predictedDisease String?
+  confidence       Decimal? @db.Decimal(5, 2)
+
+  description      String?
+  treatment        String?
+
+  lowConfidence    Boolean  @default(false)
+  pepperScore      Decimal? @db.Decimal(5, 2)
+
+  rejectReason     String?
+  rawResponse      Json?
+
+  createdAt        DateTime @default(now())
+
+  probabilities    DetectionProbability[]
+
+  @@index([predictedDisease])
+  @@index([createdAt])
+  @@map("disease_detections")
+}
+
+model DetectionProbability {
+  id           String   @id @default(uuid())
+  detectionId  String
+  diseaseName  String
+  probability  Decimal  @db.Decimal(5, 2)
+
+  detection    DiseaseDetection @relation(fields: [detectionId], references: [id], onDelete: Cascade)
+
+  @@index([detectionId])
+  @@map("detection_probabilities")
+}

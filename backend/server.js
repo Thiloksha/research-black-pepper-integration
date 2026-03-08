@@ -5,6 +5,7 @@ const multer = require('multer');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const path = require('path');
+const prisma = require('./src/config/prisma');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -66,6 +67,47 @@ const deleteUploadedFile = (filePath) => {
   });
 };
 
+const toPublicImageUrl = (filename) => {
+  return `/uploads/${filename}`;
+};
+
+const toDecimalOrNull = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+
+  const cleaned =
+    typeof value === 'string' ? value.replace('%', '').trim() : value;
+
+  const num = Number(cleaned);
+
+  return Number.isFinite(num) ? num : null;
+};
+
+const mapDetectionForClient = (detection) => {
+  return {
+    id: detection.id,
+    image: detection.imageUrl,
+    disease: detection.predictedDisease,
+    confidence:
+      detection.confidence !== null && detection.confidence !== undefined
+        ? `${detection.confidence}%`
+        : 'N/A',
+    treatment: detection.treatment,
+    description: detection.description,
+    probabilities: Array.isArray(detection.probabilities)
+      ? Object.fromEntries(
+          detection.probabilities.map((p) => [
+            p.diseaseName,
+            Number(p.probability),
+          ])
+        )
+      : {},
+    lowConfidence: detection.lowConfidence,
+    savedAt: detection.createdAt,
+    rejectReason: detection.rejectReason,
+    pepperScore: detection.pepperScore,
+  };
+};
+
 // ---------------- Basic Routes ----------------
 app.get('/', (req, res) => {
   res.send('Smart Black Pepper Guardian Backend Running 🚀');
@@ -79,9 +121,16 @@ app.get('/health', (req, res) => {
       'GET /api/soil-analysis',
       'POST /api/predict-image',
       'POST /api/variety-predict',
+      'GET /api/detections',
+      'GET /api/detections/:id',
+      'DELETE /api/detections/:id',
+      'DELETE /api/detections',
     ],
   });
 });
+
+// Serve uploaded files
+app.use('/uploads', express.static(uploadsDir));
 
 // ---------------- Soil Analysis Route ----------------
 app.get('/api/soil-analysis', async (req, res) => {
@@ -160,6 +209,82 @@ app.get('/api/soil-analysis', async (req, res) => {
   }
 });
 
+// ---------------- Disease Detection History Routes ----------------
+app.get('/api/detections', async (req, res) => {
+  try {
+    const detections = await prisma.diseaseDetection.findMany({
+      include: {
+        probabilities: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return res.json(detections.map(mapDetectionForClient));
+  } catch (error) {
+    console.error('Fetch detections error:', error);
+    return res.status(500).json({ error: 'Failed to fetch detections' });
+  }
+});
+
+app.get('/api/detections/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const detection = await prisma.diseaseDetection.findUnique({
+      where: { id },
+      include: {
+        probabilities: true,
+      },
+    });
+
+    if (!detection) {
+      return res.status(404).json({ error: 'Detection not found' });
+    }
+
+    return res.json(mapDetectionForClient(detection));
+  } catch (error) {
+    console.error('Fetch detection by id error:', error);
+    return res.status(500).json({ error: 'Failed to fetch detection' });
+  }
+});
+
+app.delete('/api/detections/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.diseaseDetection.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Detection not found' });
+    }
+
+    await prisma.diseaseDetection.delete({
+      where: { id },
+    });
+
+    return res.json({ message: 'Detection deleted successfully' });
+  } catch (error) {
+    console.error('Delete detection error:', error);
+    return res.status(500).json({ error: 'Failed to delete detection' });
+  }
+});
+
+app.delete('/api/detections', async (req, res) => {
+  try {
+    await prisma.detectionProbability.deleteMany();
+    await prisma.diseaseDetection.deleteMany();
+
+    return res.json({ message: 'All detections deleted successfully' });
+  } catch (error) {
+    console.error('Delete all detections error:', error);
+    return res.status(500).json({ error: 'Failed to delete all detections' });
+  }
+});
+
 // ---------------- General Image Prediction Route ----------------
 app.post(
   '/api/predict-image',
@@ -168,7 +293,7 @@ app.post(
     next();
   },
   upload.single('file'),
-  (req, res) => {
+  async (req, res) => {
     try {
       console.log('Uploaded file object:', req.file);
       console.log('Request body:', req.body);
@@ -180,6 +305,7 @@ app.post(
       }
 
       const imagePath = req.file.path;
+      const imageUrl = toPublicImageUrl(req.file.filename);
       const pythonScript = path.join(__dirname, 'predict_image.py');
 
       console.log('Saved image path:', imagePath);
@@ -199,7 +325,7 @@ app.post(
         console.error(`Image Python stderr: ${data}`);
       });
 
-      pythonProcess.on('close', (code) => {
+      pythonProcess.on('close', async (code) => {
         console.log('Python process exit code:', code);
 
         if (code !== 0) {
@@ -207,7 +333,23 @@ app.post(
           console.error('Python stdout:', predictionResult);
           console.error('Python stderr:', errorResult);
 
-          deleteUploadedFile(imagePath);
+          try {
+            await prisma.diseaseDetection.create({
+              data: {
+                imageUrl,
+                imageName: req.file.originalname,
+                imageMimeType: req.file.mimetype,
+                imageSizeBytes: req.file.size,
+                rejectReason: 'Python prediction failed',
+                rawResponse: {
+                  stdout: predictionResult,
+                  stderr: errorResult,
+                },
+              },
+            });
+          } catch (dbError) {
+            console.error('Failed to save failed detection:', dbError);
+          }
 
           return res.status(500).json({
             error: 'Image prediction failed',
@@ -221,20 +363,70 @@ app.post(
           const lastLine = lines[lines.length - 1].trim();
           const aiResponse = JSON.parse(lastLine);
 
-          deleteUploadedFile(imagePath);
+          const probabilityEntries = Object.entries(aiResponse.all_probabilities || {})
+            .map(([diseaseName, probability]) => ({
+              diseaseName,
+              probability: toDecimalOrNull(probability),
+            }))
+            .filter((item) => item.probability !== null);
+
+          const savedDetection = await prisma.diseaseDetection.create({
+            data: {
+              imageUrl,
+              imageName: req.file.originalname,
+              imageMimeType: req.file.mimetype,
+              imageSizeBytes: req.file.size,
+              predictedDisease: aiResponse.prediction || null,
+              confidence: toDecimalOrNull(aiResponse.confidence),
+              description: aiResponse.description || null,
+              treatment: aiResponse.advice || null,
+              lowConfidence: Boolean(aiResponse.low_confidence),
+              pepperScore: toDecimalOrNull(aiResponse.pepper_score),
+              rejectReason: aiResponse.reject_reason || null,
+              rawResponse: aiResponse,
+              probabilities: probabilityEntries.length
+                ? {
+                    create: probabilityEntries,
+                  }
+                : undefined,
+            },
+            include: {
+              probabilities: true,
+            },
+          });
 
           return res.json({
             success: true,
+            detectionId: savedDetection.id,
             image_name: req.file.filename,
+            image_url: imageUrl,
             ai_analysis: aiResponse,
           });
         } catch (parseError) {
-          console.error('Failed to parse Python output:', predictionResult);
+          console.error('Prediction save/parse error:', parseError);
+          console.error('Raw Python output:', predictionResult);
 
-          deleteUploadedFile(imagePath);
+          try {
+            await prisma.diseaseDetection.create({
+              data: {
+                imageUrl,
+                imageName: req.file.originalname,
+                imageMimeType: req.file.mimetype,
+                imageSizeBytes: req.file.size,
+                rejectReason: 'Invalid image prediction format returned',
+                rawResponse: {
+                  raw_output: predictionResult,
+                  stderr: errorResult,
+                },
+              },
+            });
+          } catch (dbError) {
+            console.error('Failed to save parse failure detection:', dbError);
+          }
 
           return res.status(500).json({
-            error: 'Invalid image prediction format returned.',
+            error: 'Failed to save or parse prediction result.',
+            details: parseError.message,
             raw_output: predictionResult,
             stderr: errorResult,
           });
@@ -331,9 +523,17 @@ app.use((err, req, res, next) => {
 });
 
 // ---------------- Start Server ----------------
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
+  try {
+    await prisma.$connect();
+    console.log('✅ PostgreSQL connected successfully');
+  } catch (error) {
+    console.error('❌ PostgreSQL connection failed:', error);
+  }
+
   console.log(`\n🌱 Smart Black Pepper Guardian Backend running on http://localhost:${PORT}`);
   console.log(`📡 Listening for requests at /api/soil-analysis`);
   console.log(`📸 Listening for requests at /api/predict-image`);
   console.log(`🍃 Listening for requests at /api/variety-predict`);
+  console.log(`🗂 Listening for requests at /api/detections`);
 });
