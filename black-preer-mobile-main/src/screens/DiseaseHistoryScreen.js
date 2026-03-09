@@ -34,7 +34,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/detections`);
-      console.log("Loaded history:", response.data);
       setHistory(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.log("History load error:", error);
@@ -58,7 +57,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
       if (!confirmed) return;
 
       try {
-        console.log("Sending DELETE ALL request");
         await axios.delete(`${API_BASE_URL}/api/detections`);
         setHistory([]);
       } catch (error) {
@@ -78,7 +76,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              console.log("Sending DELETE ALL request");
               await axios.delete(`${API_BASE_URL}/api/detections`);
               setHistory([]);
             } catch (error) {
@@ -92,8 +89,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
   };
 
   const deleteSingleItem = async (id) => {
-    console.log("Delete button clicked. ID =", id);
-
     if (!id) {
       Alert.alert("Error", "This item has no valid ID.");
       return;
@@ -106,7 +101,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
       if (!confirmed) return;
 
       try {
-        console.log("Sending DELETE request for ID =", id);
         await axios.delete(`${API_BASE_URL}/api/detections/${id}`);
         setHistory((prev) => prev.filter((item) => item.id !== id));
       } catch (error) {
@@ -126,7 +120,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              console.log("Sending DELETE request for ID =", id);
               await axios.delete(`${API_BASE_URL}/api/detections/${id}`);
               setHistory((prev) => prev.filter((item) => item.id !== id));
             } catch (error) {
@@ -251,8 +244,6 @@ export default function DiseaseHistoryScreen({ navigation }) {
             </Text>
 
             {history.map((item, index) => {
-              console.log("History item:", item);
-
               const fullImageUrl = getFullImageUrl(item.image);
               const canShowImage = isDisplayableImage(fullImageUrl);
               const cardKey = item.id ?? `${item.savedAt ?? "item"}-${index}`;
@@ -269,8 +260,22 @@ export default function DiseaseHistoryScreen({ navigation }) {
                   }
                 >
                   <View style={styles.card}>
-                    {canShowImage ? (
-                      <Image source={{ uri: fullImageUrl }} style={styles.image} />
+                    {canShowImage && !item.imageError ? (
+                      <Image
+                        source={{ uri: fullImageUrl }}
+                        style={styles.image}
+                        onError={() => {
+                          console.log("Image failed to load:", fullImageUrl);
+
+                          setHistory((prev) =>
+                            prev.map((historyItem) =>
+                              historyItem.id === item.id
+                                ? { ...historyItem, imageError: true }
+                                : historyItem
+                            )
+                          );
+                        }}
+                      />
                     ) : (
                       <View style={styles.imagePlaceholder}>
                         <Text style={styles.imagePlaceholderIcon}>🖼️</Text>
@@ -318,10 +323,7 @@ export default function DiseaseHistoryScreen({ navigation }) {
 
                           <TouchableOpacity
                             style={styles.deleteItemButton}
-                            onPress={() => {
-                              console.log("Pressed delete for item:", item);
-                              deleteSingleItem(item.id);
-                            }}
+                            onPress={() => deleteSingleItem(item.id)}
                             activeOpacity={0.85}
                           >
                             <Text style={styles.deleteItemButtonText}>
