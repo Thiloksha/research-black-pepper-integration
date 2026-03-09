@@ -13,7 +13,7 @@ VARIETY_MODEL_PATH = os.path.join(MODEL_DIR, "stageB_saved_model")
 
 IMG_SIZE = (224, 224)
 
-STAGEA_CLASSES = ["other", "pepper_leaf"]  # alphabetical order
+STAGEA_CLASSES = ["other", "pepper_leaf"]
 VARIETY_CLASSES = ["Butawerala", "Dingirala", "Kohukuburerala"]
 
 STAGEA_THRESHOLD = 0.80
@@ -88,12 +88,18 @@ def main():
             }
         }
 
+        # ── Stage A: reject if not a pepper leaf ─────────────────────────
         if stageA_label != "pepper_leaf":
-            result["stageA_warning"] = "Stage A classified this image as non-pepper, but variety prediction was still attempted."
-        elif stageA_conf < STAGEA_THRESHOLD:
-            result["stageA_warning"] = "Pepper leaf detected with low confidence, but variety prediction was still attempted."
+            result["accepted"] = False
+            result["stageA_warning"] = "Image is not a pepper leaf. Please upload a valid black pepper leaf image."
+            print(json.dumps(result))
+            sys.exit(0)
 
-        # Stage B: variety classification
+        # ── Stage A: warn if low confidence but still proceed ────────────
+        if stageA_conf < STAGEA_THRESHOLD:
+            result["stageA_warning"] = "Pepper leaf detected with low confidence."
+
+        # ── Stage B: variety classification ──────────────────────────────
         x_variety = prepare_variety_image(img_path)
         variety_probs = variety_model.serve(x_variety).numpy()[0]
 
