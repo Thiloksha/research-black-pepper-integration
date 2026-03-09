@@ -9,6 +9,7 @@ import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
 import AnalysisScreen from '../screens/AnalysisScreen';
 import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
 import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
@@ -25,6 +26,7 @@ const Stack = createNativeStackNavigator();
 const SCREEN_META = {
   Landing:               { icon: 'home-outline'              },
   SignIn:                { icon: 'person-outline'             },
+  SignUp:                { icon: 'person-add-outline'        },
   Home:                  { icon: 'heart-circle-outline'       },
   Analysis:              { icon: 'stats-chart-outline'        },
   SoilAnalysis:          { icon: 'flask-outline'              },
@@ -148,6 +150,11 @@ export default function AppNavigator() {
           name="SignIn"
           component={SignInScreen}
           options={{ title: 'Sign In', headerShown: false }}
+        />
+        <Stack.Screen
+          name="SignUp"
+          component={SignUpScreen}
+          options={{ title: 'Sign Up', headerShown: false }}
         />
         <Stack.Screen name="Home"                  component={HomeScreen}                  options={{ title: 'Health & Post Harvest' }} />
         <Stack.Screen name="Analysis"              component={AnalysisScreen}              options={{ title: 'Berry Analysis' }} />
