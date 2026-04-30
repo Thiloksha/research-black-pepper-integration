@@ -3,127 +3,213 @@ import sys
 import json
 import numpy as np
 from PIL import Image
+from tensorflow.keras.applications.resnet_v2 import preprocess_input
 import tensorflow as tf
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 
-STAGEA_MODEL_PATH = os.path.join(MODEL_DIR, "stageA_saved_model")
-VARIETY_MODEL_PATH = os.path.join(MODEL_DIR, "stageB_saved_model")
+MODEL_PATH = os.path.join(MODEL_DIR, "variety_resnet50v2.h5")
 
 IMG_SIZE = (224, 224)
 
-STAGEA_CLASSES = ["other", "pepper_leaf"]
-VARIETY_CLASSES = ["Butawerala", "Dingirala", "Kohukuburerala"]
-
-STAGEA_THRESHOLD = 0.80
-VARIETY_THRESHOLD = 0.50
+CLASS_NAMES = ["Butawerala", "Dingirala", "Kohukuburerala"]
 
 
-def load_models():
-    try:
-        if not os.path.exists(STAGEA_MODEL_PATH):
-            raise FileNotFoundError(f"Missing Stage A model: {STAGEA_MODEL_PATH}")
-        if not os.path.exists(VARIETY_MODEL_PATH):
-            raise FileNotFoundError(f"Missing Variety model: {VARIETY_MODEL_PATH}")
-
-        stageA_model = tf.saved_model.load(STAGEA_MODEL_PATH)
-        variety_model = tf.saved_model.load(VARIETY_MODEL_PATH)
-
-        return stageA_model, variety_model
-    except Exception as e:
-        print(json.dumps({
-            "accepted": False,
-            "error": f"Failed to load models: {str(e)}"
-        }))
+def load_model_only():
+    if not os.path.exists(MODEL_PATH):
+        print(json.dumps({"error": "Model not found"}))
         sys.exit(1)
 
+    return tf.keras.models.load_model(
+        MODEL_PATH,
+        custom_objects={"preprocess_input": preprocess_input}
+    )
 
-def prepare_raw_image(img_path):
-    """Raw pixels [0-255] — Stage A model has preprocessing built in."""
+
+def prepare_image(img_path):
     img = Image.open(img_path).convert("RGB")
     img = img.resize(IMG_SIZE)
-    x = np.array(img, dtype=np.float32)
-    x = np.expand_dims(x, axis=0)
-    return x
 
-
-def prepare_variety_image(img_path):
-    """EfficientNet preprocessing for Stage B."""
-    img = Image.open(img_path).convert("RGB")
-    img = img.resize(IMG_SIZE)
     x = np.array(img, dtype=np.float32)
-    x = tf.keras.applications.efficientnet.preprocess_input(x)
+
+    # ❗ IMPORTANT: NO preprocess_input here
+    # model already includes preprocessing layer
+
     x = np.expand_dims(x, axis=0)
     return x
 
 
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps({"accepted": False, "error": "Image path not provided"}))
+        print(json.dumps({"error": "Image path not provided"}))
         sys.exit(1)
 
     img_path = sys.argv[1]
 
     if not os.path.exists(img_path):
-        print(json.dumps({"accepted": False, "error": "Image file not found"}))
+        print(json.dumps({"error": "Image not found"}))
         sys.exit(1)
 
     try:
-        stageA_model, variety_model = load_models()
+        model = load_model_only()
 
-        # ── Stage A: pepper vs other ──────────────────────────────────────
-        x_stageA = prepare_raw_image(img_path)
-        stageA_probs = stageA_model.serve([x_stageA]).numpy()[0]
+        x = prepare_image(img_path)
 
-        stageA_idx = int(np.argmax(stageA_probs))
-        stageA_label = STAGEA_CLASSES[stageA_idx]
-        stageA_conf = float(stageA_probs[stageA_idx])
+        preds = model.predict(x)[0]
+
+        pred_idx = int(np.argmax(preds))
+        pred_label = CLASS_NAMES[pred_idx]
+        confidence = float(preds[pred_idx])
 
         result = {
             "accepted": True,
-            "stageA": {
-                "label": stageA_label,
-                "confidence": round(stageA_conf * 100, 2)
+            "prediction": {
+                "label": pred_label,
+                "confidence": round(confidence * 100, 2)
+            },
+            "probabilities": {
+                CLASS_NAMES[i]: round(float(preds[i]) * 100, 2)
+                for i in range(len(CLASS_NAMES))
             }
         }
-
-        # ── Stage A: reject if not a pepper leaf ─────────────────────────
-        if stageA_label != "pepper_leaf":
-            result["accepted"] = False
-            result["stageA_warning"] = "Image is not a pepper leaf. Please upload a valid black pepper leaf image."
-            print(json.dumps(result))
-            sys.exit(0)
-
-        # ── Stage A: warn if low confidence but still proceed ────────────
-        if stageA_conf < STAGEA_THRESHOLD:
-            result["stageA_warning"] = "Pepper leaf detected with low confidence."
-
-        # ── Stage B: variety classification ──────────────────────────────
-        x_variety = prepare_variety_image(img_path)
-        variety_probs = variety_model.serve(x_variety).numpy()[0]
-
-        variety_idx = int(np.argmax(variety_probs))
-        variety_label = VARIETY_CLASSES[variety_idx]
-        variety_conf = float(variety_probs[variety_idx])
-
-        result["prediction"] = {
-            "label": variety_label,
-            "confidence": round(variety_conf * 100, 2)
-        }
-        result["probabilities"] = {
-            VARIETY_CLASSES[i]: round(float(variety_probs[i]) * 100, 2)
-            for i in range(len(VARIETY_CLASSES))
-        }
-
-        result["message"] = "ok" if variety_conf >= VARIETY_THRESHOLD else "Variety prediction confidence is low."
 
         print(json.dumps(result))
 
     except Exception as e:
-        print(json.dumps({"accepted": False, "error": str(e)}))
+        print(json.dumps({"error": str(e)}))
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
+
+# import os
+# import sys
+# import json
+# import numpy as np
+# from PIL import Image
+# import tensorflow as tf
+
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# MODEL_DIR = os.path.join(BASE_DIR, "models")
+
+# STAGEA_MODEL_PATH = os.path.join(MODEL_DIR, "stageA_saved_model")
+# VARIETY_MODEL_PATH = os.path.join(MODEL_DIR, "stageB_saved_model")
+
+# IMG_SIZE = (224, 224)
+
+# STAGEA_CLASSES = ["other", "pepper_leaf"]
+# VARIETY_CLASSES = ["Butawerala", "Dingirala", "Kohukuburerala"]
+
+# STAGEA_THRESHOLD = 0.80
+# VARIETY_THRESHOLD = 0.50
+
+
+# def load_models():
+#     try:
+#         if not os.path.exists(STAGEA_MODEL_PATH):
+#             raise FileNotFoundError(f"Missing Stage A model: {STAGEA_MODEL_PATH}")
+#         if not os.path.exists(VARIETY_MODEL_PATH):
+#             raise FileNotFoundError(f"Missing Variety model: {VARIETY_MODEL_PATH}")
+
+#         stageA_model = tf.saved_model.load(STAGEA_MODEL_PATH)
+#         variety_model = tf.saved_model.load(VARIETY_MODEL_PATH)
+
+#         return stageA_model, variety_model
+#     except Exception as e:
+#         print(json.dumps({
+#             "accepted": False,
+#             "error": f"Failed to load models: {str(e)}"
+#         }))
+#         sys.exit(1)
+
+
+# def prepare_raw_image(img_path):
+#     """Raw pixels [0-255] — Stage A model has preprocessing built in."""
+#     img = Image.open(img_path).convert("RGB")
+#     img = img.resize(IMG_SIZE)
+#     x = np.array(img, dtype=np.float32)
+#     x = np.expand_dims(x, axis=0)
+#     return x
+
+
+# def prepare_variety_image(img_path):
+#     """EfficientNet preprocessing for Stage B."""
+#     img = Image.open(img_path).convert("RGB")
+#     img = img.resize(IMG_SIZE)
+#     x = np.array(img, dtype=np.float32)
+#     x = tf.keras.applications.efficientnet.preprocess_input(x)
+#     x = np.expand_dims(x, axis=0)
+#     return x
+
+
+# def main():
+#     if len(sys.argv) < 2:
+#         print(json.dumps({"accepted": False, "error": "Image path not provided"}))
+#         sys.exit(1)
+
+#     img_path = sys.argv[1]
+
+#     if not os.path.exists(img_path):
+#         print(json.dumps({"accepted": False, "error": "Image file not found"}))
+#         sys.exit(1)
+
+#     try:
+#         stageA_model, variety_model = load_models()
+
+#         # ── Stage A: pepper vs other ──────────────────────────────────────
+#         x_stageA = prepare_raw_image(img_path)
+#         stageA_probs = stageA_model.serve([x_stageA]).numpy()[0]
+
+#         stageA_idx = int(np.argmax(stageA_probs))
+#         stageA_label = STAGEA_CLASSES[stageA_idx]
+#         stageA_conf = float(stageA_probs[stageA_idx])
+
+#         result = {
+#             "accepted": True,
+#             "stageA": {
+#                 "label": stageA_label,
+#                 "confidence": round(stageA_conf * 100, 2)
+#             }
+#         }
+
+#         # ── Stage A: reject if not a pepper leaf ─────────────────────────
+#         if stageA_label != "pepper_leaf":
+#             result["accepted"] = False
+#             result["stageA_warning"] = "Image is not a pepper leaf. Please upload a valid black pepper leaf image."
+#             print(json.dumps(result))
+#             sys.exit(0)
+
+#         # ── Stage A: warn if low confidence but still proceed ────────────
+#         if stageA_conf < STAGEA_THRESHOLD:
+#             result["stageA_warning"] = "Pepper leaf detected with low confidence."
+
+#         # ── Stage B: variety classification ──────────────────────────────
+#         x_variety = prepare_variety_image(img_path)
+#         variety_probs = variety_model.serve(x_variety).numpy()[0]
+
+#         variety_idx = int(np.argmax(variety_probs))
+#         variety_label = VARIETY_CLASSES[variety_idx]
+#         variety_conf = float(variety_probs[variety_idx])
+
+#         result["prediction"] = {
+#             "label": variety_label,
+#             "confidence": round(variety_conf * 100, 2)
+#         }
+#         result["probabilities"] = {
+#             VARIETY_CLASSES[i]: round(float(variety_probs[i]) * 100, 2)
+#             for i in range(len(VARIETY_CLASSES))
+#         }
+
+#         result["message"] = "ok" if variety_conf >= VARIETY_THRESHOLD else "Variety prediction confidence is low."
+
+#         print(json.dumps(result))
+
+#     except Exception as e:
+#         print(json.dumps({"accepted": False, "error": str(e)}))
+#         sys.exit(1)
+
+
+# if __name__ == "__main__":
+#     main()
