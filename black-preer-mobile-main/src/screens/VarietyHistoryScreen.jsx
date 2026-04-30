@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { getVarietyHistory } from "../api/varietyHistory";
 import { deleteVarietyRecord } from "../api/varietyHistory";
+import {clearVarietyHistory} from "../api/varietyHistory";
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -61,37 +62,41 @@ export default function VarietyHistoryScreen() {
     }
   };
 
-  const clearHistory = async () => {
-    try {
-      if (Platform.OS === 'web') {
-        const confirmed = window.confirm('Are you sure you want to delete all scan history?');
-        if (!confirmed) return;
-        await AsyncStorage.removeItem('scanHistory');
-        setHistory([]);
-        return;
-      }
-
+  const clearHistory = () => {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Delete ALL history?");
+      if (!confirmed) return;
+      handleClear();
+    } else {
       Alert.alert(
-        'Clear History',
-        'Are you sure you want to delete all scan history?',
+        "Clear History",
+        "Delete ALL scan history?",
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: "Cancel", style: "cancel" },
           {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await AsyncStorage.removeItem('scanHistory');
-                setHistory([]);
-              } catch (e) {
-                console.log('Error clearing history:', e);
-              }
-            },
+            text: "Delete",
+            style: "destructive",
+            onPress: handleClear,
           },
         ]
       );
+    }
+  };
+
+  const handleClear = async () => {
+    try {
+      const res = await clearVarietyHistory();
+
+      console.log("CLEAR RESPONSE:", res);
+
+      if (!res.success) {
+        throw new Error("Clear failed");
+      }
+
+      setHistory([]); // update UI
     } catch (e) {
-      console.log('Error clearing history:', e);
+      console.log("Error clearing history:", e);
+      Alert.alert("Error", "Failed to clear history");
     }
   };
 

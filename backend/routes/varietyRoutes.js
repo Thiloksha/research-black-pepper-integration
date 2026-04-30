@@ -58,13 +58,13 @@ router.post('/', localUpload.single('image'), async (req, res) => {
     localFilePath = req.file.path;
     console.log('📸 Image saved locally:', localFilePath);
 
-    // ── Step 1: Run Python prediction ───────────────────────────
+    // ── Step 1: Run Python prediction 
     const scriptPath = path.join(__dirname, '..', 'predict_variety.py');
     const predictionResult = await runPythonScript(scriptPath, [localFilePath]);
 
     console.log('🤖 Python prediction result:', predictionResult);
 
-    // ── Step 2: Upload to Cloudinary ────────────────────────────
+    // ── Step 2: Upload to Cloudinary 
     const { cloudinary } = require('../config/cloudinary');
 
     const cloudinaryResult = await cloudinary.uploader.upload(localFilePath, {
@@ -77,11 +77,11 @@ router.post('/', localUpload.single('image'), async (req, res) => {
     cloudinaryPublicId = cloudinaryResult.public_id;
     console.log('☁️ Uploaded to Cloudinary:', cloudinaryResult.secure_url);
 
-    // ── Step 3: Delete local file ────────────────────────────────
+    // Step 3: Delete local file 
     deleteLocalFile(localFilePath);
     localFilePath = null;
 
-    // ── Step 4: Save to MongoDB ──────────────────────────────────
+    // Step 4: Save to MongoDB 
     const dbRecord = await VarietyPrediction.create({
       image: {
         url: cloudinaryResult.secure_url,
@@ -99,7 +99,7 @@ router.post('/', localUpload.single('image'), async (req, res) => {
 
     console.log('💾 Saved to MongoDB:', dbRecord._id);
 
-    // ── Step 5: Return response ──────────────────────────────────
+    //  Step 5: Return response 
     return res.status(200).json({
       success: true,
       recordId: dbRecord._id,
@@ -128,7 +128,7 @@ router.post('/', localUpload.single('image'), async (req, res) => {
   }
 });
 
-// ── GET /api/variety-predict/history ────────────────────────────
+//  GET /api/variety-predict/history 
 router.get('/history', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -154,7 +154,7 @@ router.get('/history', async (req, res) => {
   }
 });
 
-// ── GET /api/variety-predict/:id ─────────────────────────────────
+//  GET /api/variety-predict/:id 
 router.get('/:id', async (req, res) => {
   try {
     const record = await VarietyPrediction.findById(req.params.id);
@@ -169,7 +169,31 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ── DELETE /api/variety-predict/:id ──────────────────────────────
+// DELETE ALL /api/variety-predict 
+router.delete('/', async (req, res) => {
+  try {
+    const records = await VarietyPrediction.find();
+
+    // delete all images from Cloudinary
+    for (const record of records) {
+      if (record.image?.publicId) {
+        await deleteFromCloudinary(record.image.publicId);
+      }
+    }
+
+    // delete all from MongoDB
+    await VarietyPrediction.deleteMany();
+
+    return res.json({
+      success: true,
+      message: 'All records deleted successfully',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+//  DELETE /api/variety-predict/:id 
 router.delete('/:id', async (req, res) => {
   try {
     const record = await VarietyPrediction.findById(req.params.id);

@@ -16,3 +16,29 @@ export const getVarietyHistory = async (page = 1, limit = 10) => {
     throw new Error("Failed to fetch history");
   }
 };
+
+export const deleteVarietyRecord = async (id) => {
+  try {
+    const res = await axios.delete(
+      `${API_BASE}/api/variety-predict/${id}`
+    );
+
+    return res.data;
+  } catch (error) {
+    console.error("Delete error:", error);
+    throw new Error("Failed to delete record");
+  }
+};
+
+export const clearVarietyHistory = async () => {
+  try {
+    const res = await axios.delete(
+      `${API_BASE}/api/variety-predict`
+    );
+
+    return res.data;
+  } catch (error) {
+    console.error("Clear error:", error);
+    throw new Error("Failed to clear history");
+  }
+};
