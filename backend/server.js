@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -5,7 +7,9 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+
 const prisma = require('./src/config/prisma');
+const cloudinary = require('./src/config/cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -17,6 +21,9 @@ app.use(express.json());
 // ---------------- Config ----------------
 const TS_CHANNEL = '3187265';
 const TS_KEY = 'ISFWVJXZW7P5TMQ9';
+
+// IMPORTANT: use Python 3.12 venv
+const PYTHON_PATH = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
 
 // ---------------- Upload Config ----------------
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -67,9 +74,13 @@ const deleteUploadedFile = (filePath) => {
   });
 };
 
-const toPublicImageUrl = (filename) => {
-  if (!filename) return null;
-  return `/uploads/${filename}`;
+const uploadToCloudinary = async (imagePath, folderName) => {
+  const result = await cloudinary.uploader.upload(imagePath, {
+    folder: folderName,
+    resource_type: 'image',
+  });
+
+  return result.secure_url;
 };
 
 const toDecimalOrNull = (value) => {
@@ -158,9 +169,6 @@ const mapVarietyForClient = (detection) => {
   };
 };
 
-// Serve uploaded files
-app.use('/uploads', express.static(uploadsDir));
-
 // ---------------- Basic Routes ----------------
 app.get('/', (req, res) => {
   res.send('Smart Black Pepper Guardian Backend Running 🚀');
@@ -215,7 +223,7 @@ app.get('/api/soil-analysis', async (req, res) => {
 
     console.log('Extracted Sensor Data:', sensorData);
 
-    const pythonProcess = spawn('python', [
+    const pythonProcess = spawn(PYTHON_PATH, [
       path.join(__dirname, 'predict.py'),
       JSON.stringify(sensorData),
     ]);
@@ -432,6 +440,8 @@ app.post(
   },
   upload.single('file'),
   async (req, res) => {
+    let imagePath = null;
+
     try {
       console.log('Uploaded file object:', req.file);
       console.log('Request body:', req.body);
@@ -442,14 +452,14 @@ app.post(
         });
       }
 
-      const imagePath = req.file.path;
-      const imageUrl = toPublicImageUrl(req.file.filename);
+      imagePath = req.file.path;
       const pythonScript = path.join(__dirname, 'predict_image.py');
 
       console.log('Saved image path:', imagePath);
       console.log('Python script path:', pythonScript);
+      console.log('Python executable:', PYTHON_PATH);
 
-      const pythonProcess = spawn('python', [pythonScript, imagePath]);
+      const pythonProcess = spawn(PYTHON_PATH, [pythonScript, imagePath]);
 
       let predictionResult = '';
       let errorResult = '';
@@ -474,7 +484,6 @@ app.post(
           try {
             await prisma.diseaseDetection.create({
               data: {
-                imageUrl,
                 imageName: req.file.originalname,
                 imageMimeType: req.file.mimetype,
                 imageSizeBytes: req.file.size,
@@ -488,6 +497,8 @@ app.post(
           } catch (dbError) {
             console.error('Failed to save failed detection:', dbError);
           }
+
+          deleteUploadedFile(imagePath);
 
           return res.status(500).json({
             error: 'Image prediction failed',
@@ -508,9 +519,15 @@ app.post(
             }))
             .filter((item) => item.probability !== null);
 
+          // Upload image to Cloudinary only after successful prediction
+          const cloudImageUrl = await uploadToCloudinary(
+            imagePath,
+            'black-pepper-disease'
+          );
+
           const savedDetection = await prisma.diseaseDetection.create({
             data: {
-              imageUrl,
+              imageUrl: cloudImageUrl,
               imageName: req.file.originalname,
               imageMimeType: req.file.mimetype,
               imageSizeBytes: req.file.size,
@@ -533,28 +550,30 @@ app.post(
             },
           });
 
+          deleteUploadedFile(imagePath);
+
           return res.json({
             success: true,
             detectionId: savedDetection.id,
-            image_name: req.file.filename,
-            image_url: imageUrl,
+            image_name: req.file.originalname,
+            image_url: cloudImageUrl,
             ai_analysis: aiResponse,
           });
         } catch (parseError) {
-          console.error('Prediction save/parse error:', parseError);
+          console.error('Prediction save/parse/cloud upload error:', parseError);
           console.error('Raw Python output:', predictionResult);
 
           try {
             await prisma.diseaseDetection.create({
               data: {
-                imageUrl,
                 imageName: req.file.originalname,
                 imageMimeType: req.file.mimetype,
                 imageSizeBytes: req.file.size,
-                rejectReason: 'Invalid image prediction format returned',
+                rejectReason: 'Invalid image prediction format or cloud upload failed',
                 rawResponse: {
                   raw_output: predictionResult,
                   stderr: errorResult,
+                  error: parseError.message,
                 },
               },
             });
@@ -562,8 +581,10 @@ app.post(
             console.error('Failed to save parse failure detection:', dbError);
           }
 
+          deleteUploadedFile(imagePath);
+
           return res.status(500).json({
-            error: 'Failed to save or parse prediction result.',
+            error: 'Failed to save, upload, or parse prediction result.',
             details: parseError.message,
             raw_output: predictionResult,
             stderr: errorResult,
@@ -572,6 +593,8 @@ app.post(
       });
     } catch (error) {
       console.error('Server Error:', error.message);
+      deleteUploadedFile(imagePath);
+
       return res.status(500).json({
         error: 'Failed to process uploaded image.',
         details: error.message,
@@ -590,7 +613,7 @@ app.post('/api/variety-predict', upload.single('image'), (req, res) => {
     const imagePath = req.file.path;
     console.log('Received variety image:', imagePath);
 
-    const pythonProcess = spawn('python', [
+    const pythonProcess = spawn(PYTHON_PATH, [
       path.join(__dirname, 'predict_variety.py'),
       imagePath,
     ]);
