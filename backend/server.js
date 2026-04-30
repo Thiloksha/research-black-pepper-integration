@@ -18,11 +18,13 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
+// Serve local uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // ---------------- Config ----------------
 const TS_CHANNEL = '3187265';
 const TS_KEY = 'ISFWVJXZW7P5TMQ9';
 
-// IMPORTANT: use Python 3.12 venv
 const PYTHON_PATH = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
 
 // ---------------- Upload Config ----------------
@@ -519,11 +521,17 @@ app.post(
             }))
             .filter((item) => item.probability !== null);
 
-          // Upload image to Cloudinary only after successful prediction
-          const cloudImageUrl = await uploadToCloudinary(
-            imagePath,
-            'black-pepper-disease'
-          );
+          let cloudImageUrl = `/uploads/${req.file.filename}`;
+
+          try {
+            cloudImageUrl = await uploadToCloudinary(
+              imagePath,
+              'black-pepper-disease'
+            );
+          } catch (cloudError) {
+            console.error('Cloudinary upload failed:', cloudError.message);
+            console.log('Using local image path instead:', cloudImageUrl);
+          }
 
           const savedDetection = await prisma.diseaseDetection.create({
             data: {
@@ -550,6 +558,7 @@ app.post(
             },
           });
 
+          // Delete only after DB save
           deleteUploadedFile(imagePath);
 
           return res.json({
@@ -560,7 +569,7 @@ app.post(
             ai_analysis: aiResponse,
           });
         } catch (parseError) {
-          console.error('Prediction save/parse/cloud upload error:', parseError);
+          console.error('Prediction save/parse error:', parseError);
           console.error('Raw Python output:', predictionResult);
 
           try {
@@ -569,7 +578,7 @@ app.post(
                 imageName: req.file.originalname,
                 imageMimeType: req.file.mimetype,
                 imageSizeBytes: req.file.size,
-                rejectReason: 'Invalid image prediction format or cloud upload failed',
+                rejectReason: 'Invalid image prediction format or database save failed',
                 rawResponse: {
                   raw_output: predictionResult,
                   stderr: errorResult,
@@ -584,7 +593,7 @@ app.post(
           deleteUploadedFile(imagePath);
 
           return res.status(500).json({
-            error: 'Failed to save, upload, or parse prediction result.',
+            error: 'Failed to save or parse prediction result.',
             details: parseError.message,
             raw_output: predictionResult,
             stderr: errorResult,
