@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { loginUser } from '../services/authService';
 
 const shadowCard = Platform.select({
   ios: { shadowColor: '#1a3a2a', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.12, shadowRadius: 28 },
@@ -27,11 +28,11 @@ const shadowBtn = Platform.select({
 });
 
 export default function SignInScreen({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passFocused, setPassFocused] = useState(false);
+  // const [email, setEmail] = useState('');
+  // const [password, setPassword] = useState('');
+  // const [showPassword, setShowPassword] = useState(false);
+  // const [emailFocused, setEmailFocused] = useState(false);
+  // const [passFocused, setPassFocused] = useState(false);
 
   const { width } = useWindowDimensions();
   const isLarge = width >= 768;
@@ -49,11 +50,6 @@ export default function SignInScreen({ navigation }) {
       Animated.spring(logoScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
     ]).start();
   }, []);
-
-  const handleSignIn = () => {
-    console.log('Signing in with:', email, password);
-    navigation.navigate('Landing');
-  };
 
   const cardWidth = isLarge ? Math.min(460, width * 0.45) : Math.min(width - 40, 420);
 
@@ -132,17 +128,6 @@ export default function SignInScreen({ navigation }) {
                 ]}
               >
                 <SignInForm
-                  email={email}
-                  setEmail={setEmail}
-                  password={password}
-                  setPassword={setPassword}
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  emailFocused={emailFocused}
-                  setEmailFocused={setEmailFocused}
-                  passFocused={passFocused}
-                  setPassFocused={setPassFocused}
-                  handleSignIn={handleSignIn}
                   navigation={navigation}
                   isSmall={isSmall}
                 />
@@ -169,21 +154,7 @@ export default function SignInScreen({ navigation }) {
 
               {/* Form card */}
               <View style={[styles.formCard, { width: cardWidth }, shadowCard]}>
-                <SignInForm
-                  email={email}
-                  setEmail={setEmail}
-                  password={password}
-                  setPassword={setPassword}
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  emailFocused={emailFocused}
-                  setEmailFocused={setEmailFocused}
-                  passFocused={passFocused}
-                  setPassFocused={setPassFocused}
-                  handleSignIn={handleSignIn}
-                  navigation={navigation}
-                  isSmall={isSmall}
-                />
+                <SignInForm navigation={navigation} isSmall={isSmall} />
               </View>
             </Animated.View>
           )}
@@ -193,13 +164,32 @@ export default function SignInScreen({ navigation }) {
   );
 }
 
-function SignInForm({
-  email, setEmail, password, setPassword,
-  showPassword, setShowPassword,
-  emailFocused, setEmailFocused,
-  passFocused, setPassFocused,
-  handleSignIn, navigation, isSmall,
-}) {
+function SignInForm({ navigation, isSmall }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      alert('Please enter email and password');
+      return;
+    }
+    try {
+      await loginUser(email, password);
+      navigation.navigate('Landing');
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        alert('No account found with this email');
+      } else if (error.code === 'auth/wrong-password') {
+        alert('Incorrect password');
+      } else {
+        alert(error.message);
+      }
+    }
+  };
+
   return (
     <View>
       {/* Form header */}

@@ -11,7 +11,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getVarietyHistory } from "../api/varietyHistory";
+import { deleteVarietyRecord } from "../api/varietyHistory";
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -39,25 +40,24 @@ export default function VarietyHistoryScreen() {
 
   const loadHistory = async () => {
     try {
-      const stored = await AsyncStorage.getItem('scanHistory');
-      const parsed = stored ? JSON.parse(stored) : [];
+      const response = await getVarietyHistory();
 
-      const valid = parsed.filter(
-        (item) =>
-          item &&
-          item.image &&
-          item.timestamp &&
-          item.result &&
-          item.result !== 'Unknown Variety'
-      );
+      console.log("HISTORY RESPONSE:", response);
 
-      if (valid.length !== parsed.length) {
-        await AsyncStorage.setItem('scanHistory', JSON.stringify(valid));
-      }
+      const records = response.data; 
 
-      setHistory(valid);
+      const formatted = records.map(item => ({
+        id: item._id,
+        image: item.image?.url,
+        result: item.prediction?.label,
+        confidence: item.prediction?.confidence,
+        stage: "",
+        timestamp: new Date(item.createdAt).toLocaleString(),
+      }));
+
+      setHistory(formatted);
     } catch (e) {
-      console.log('Error loading history:', e);
+      console.log("Error loading history:", e);
     }
   };
 
@@ -95,39 +95,46 @@ export default function VarietyHistoryScreen() {
     }
   };
 
-  const deleteItem = async (index) => {
-    try {
-      if (Platform.OS === 'web') {
-        const confirmed = window.confirm('Do you want to remove this scan from history?');
-        if (!confirmed) return;
-        const updated = history.filter((_, i) => i !== index);
-        setHistory(updated);
-        await AsyncStorage.setItem('scanHistory', JSON.stringify(updated));
-        return;
-      }
-
+  const deleteItem = (id) => {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Do you want to remove this scan?");
+      if (!confirmed) return;
+      handleDelete(id);
+    } else {
       Alert.alert(
-        'Delete Record',
-        'Do you want to remove this scan from history?',
+        "Delete Record",
+        "Do you want to remove this scan?",
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: "Cancel", style: "cancel" },
           {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                const updated = history.filter((_, i) => i !== index);
-                setHistory(updated);
-                await AsyncStorage.setItem('scanHistory', JSON.stringify(updated));
-              } catch (e) {
-                console.log('Error deleting item:', e);
-              }
-            },
+            text: "Delete",
+            style: "destructive",
+            onPress: () => handleDelete(id),
           },
         ]
       );
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      console.log("Deleting ID:", id);
+
+      const res = await deleteVarietyRecord(id);
+
+      console.log("DELETE RESPONSE:", res);
+
+      if (!res.success) {
+        throw new Error("Delete failed");
+      }
+
+      // update UI
+      setHistory((prev) => prev.filter((item) => item.id !== id));
+
     } catch (e) {
-      console.log('Error deleting item:', e);
+      console.log("Error deleting item:", e);
+
+      Alert.alert("Error", "Failed to delete record");
     }
   };
 
@@ -254,7 +261,7 @@ export default function VarietyHistoryScreen() {
 
                           <TouchableOpacity
                             style={styles.deleteButton}
-                            onPress={() => deleteItem(index)}
+                            onPress={() => deleteItem(item.id)}
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           >
                             <Ionicons name="trash-outline" size={16} color="#b3261e" />

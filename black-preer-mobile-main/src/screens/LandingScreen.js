@@ -291,7 +291,7 @@ export default function LandingScreen({ navigation }) {
           {/* ── FOOTER ── */}
           <Animated.View style={[styles.footer, { opacity: headerAnim }]}>
             <Text style={styles.footerText}>
-              🌶️ Powered by deep learning · Built for pepper farmers
+              Powered by deep learning.
             </Text>
           </Animated.View>
         </ScrollView>
