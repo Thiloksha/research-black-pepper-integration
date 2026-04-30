@@ -6,8 +6,13 @@ __pycache__/
 # Node / React Native
 node_modules/
 
+uploads/
+
 # Environment
 .env
+
+venv/
+.DS_Store
 
 # Jupyter
 .ipynb_checkpoints/
