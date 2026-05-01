@@ -27,6 +27,34 @@ const shadowBtn = Platform.select({
   web: { boxShadow: '0px 6px 24px rgba(45,122,79,0.32)' },
 });
 
+const injectWebInputReset = () => {
+  if (Platform.OS !== 'web') return;
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('pepper-input-reset')) return;
+
+  const style = document.createElement('style');
+  style.id = 'pepper-input-reset';
+  style.innerHTML = `
+    input,
+    textarea {
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+
+    input:focus,
+    textarea:focus,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+};
+
 export default function SignUpScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const isLarge = width >= 768;
@@ -37,6 +65,8 @@ export default function SignUpScreen({ navigation }) {
   const logoScale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
+    injectWebInputReset();
+
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
@@ -177,6 +207,7 @@ function SignUpForm({ navigation, isSmall }) {
             placeholder="Enter your full name"
             placeholderTextColor="#b0c4b8"
             autoCapitalize="words"
+            underlineColorAndroid="transparent"
             onFocus={() => setNameFocused(true)}
             onBlur={() => setNameFocused(false)}
           />
@@ -199,6 +230,7 @@ function SignUpForm({ navigation, isSmall }) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            underlineColorAndroid="transparent"
             onFocus={() => setEmailFocused(true)}
             onBlur={() => setEmailFocused(false)}
           />
@@ -213,13 +245,14 @@ function SignUpForm({ navigation, isSmall }) {
             <Ionicons name="lock-closed-outline" size={18} color={passFocused ? '#2d7a4f' : '#9ab0a2'} />
           </View>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={styles.input}
             value={password}
             onChangeText={setPassword}
             placeholder="Create a password"
             placeholderTextColor="#b0c4b8"
             secureTextEntry={!showPassword}
             autoCapitalize="none"
+            underlineColorAndroid="transparent"
             onFocus={() => setPassFocused(true)}
             onBlur={() => setPassFocused(false)}
           />
@@ -237,13 +270,14 @@ function SignUpForm({ navigation, isSmall }) {
             <Ionicons name="shield-checkmark-outline" size={18} color={confirmFocused ? '#2d7a4f' : '#9ab0a2'} />
           </View>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={styles.input}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder="Re-enter your password"
             placeholderTextColor="#b0c4b8"
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
+            underlineColorAndroid="transparent"
             onFocus={() => setConfirmFocused(true)}
             onBlur={() => setConfirmFocused(false)}
           />
@@ -329,6 +363,7 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 26, fontWeight: '900', color: '#0f2618', marginBottom: 6, letterSpacing: -0.3 },
   formSubtitle: { fontSize: 14, color: '#6b8c78', lineHeight: 20 },
   fieldWrap: { marginBottom: 20 },
+<<<<<<< HEAD
   fieldLabel: { fontSize: 13, fontWeight: '700', color: '#2a4a38', marginBottom: 8, letterSpacing: 0.2 },
   inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f4faf6', borderWidth: 1.5, borderColor: '#d8ede0', borderRadius: 14, paddingHorizontal: 14, height: 52 },
   inputWrapFocused: { borderColor: '#2d7a4f', backgroundColor: '#f0faf4' },
@@ -346,4 +381,128 @@ const styles = StyleSheet.create({
   signUpRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   signUpText: { fontSize: 14, color: '#7a9985' },
   signUpLink: { fontSize: 14, color: '#2d7a4f', fontWeight: '800' },
+=======
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2a4a38',
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  },
+
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f4faf6',
+    borderWidth: 1.5,
+    borderColor: '#d8ede0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 52,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        boxShadow: 'none',
+      },
+    }),
+  },
+  inputWrapFocused: {
+    borderColor: '#2d7a4f',
+    backgroundColor: '#f0faf4',
+  },
+  inputIconWrap: { marginRight: 10 },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    color: '#1a2e22',
+    paddingVertical: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        outlineColor: 'transparent',
+        boxShadow: 'none',
+        borderWidth: 0,
+        borderColor: 'transparent',
+      },
+    }),
+  },
+  eyeBtn: {
+    padding: 4,
+    marginLeft: 8,
+  },
+
+  signInBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  signInBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  signInBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddeee5',
+  },
+  orText: {
+    fontSize: 12,
+    color: '#8aab97',
+    fontWeight: '600',
+  },
+
+  guestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#c8e0d2',
+    borderRadius: 14,
+    paddingVertical: 14,
+    backgroundColor: '#f8fdf9',
+    marginBottom: 24,
+  },
+  guestBtnText: {
+    fontSize: 15,
+    color: '#3a5e4a',
+    fontWeight: '700',
+  },
+
+  signUpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signUpText: {
+    fontSize: 14,
+    color: '#7a9985',
+  },
+  signUpLink: {
+    fontSize: 14,
+    color: '#2d7a4f',
+    fontWeight: '800',
+  },
+>>>>>>> 6fb4b44a85b95978bae67e8b85a32832f1689b29
 });

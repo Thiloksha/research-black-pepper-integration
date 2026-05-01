@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSelector } from 'react-redux';
 
 import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
@@ -14,7 +15,6 @@ import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
 import DiseaseUploadScreen from '../screens/DiseaseUploadScreen';
-import DiseaseResultScreen from '../screens/DiseaseResultScreen';
 import VarietyHubScreen from '../screens/VarietyHubScreen';
 import VarietyIdentifyScreen from '../screens/VarietyIdentifyScreen';
 import VarietyInfoScreen from '../screens/VarietyInfoScreen';
@@ -33,7 +33,6 @@ const SCREEN_META = {
   Dashboard:             { icon: 'grid-outline'               },
   DiseaseIdentification: { icon: 'bug-outline'                },
   DiseaseUpload:         { icon: 'cloud-upload-outline'       },
-  DiseaseResult:         { icon: 'checkmark-circle-outline'   },
   VarietyHub:            { icon: 'leaf-outline'               },
   VarietyIdentify:       { icon: 'scan-outline'               },
   VarietyInfo:           { icon: 'information-circle-outline' },
@@ -100,10 +99,14 @@ const headerShadow = Platform.select({
 
 // ── Navigator ───────────────────────────────────────────────────
 export default function AppNavigator() {
+  const { currentUser } = useSelector((state) => state.user);
+
+  const initialRoute = currentUser ? 'Home' : 'SignIn';
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="SignIn"
+        initialRouteName={initialRoute}
         screenOptions={({ navigation, route }) => ({
           headerStyle: {
             backgroundColor: '#2d7a4f',
@@ -162,7 +165,6 @@ export default function AppNavigator() {
         <Stack.Screen name="Dashboard"             component={DashboardScreen}             options={{ title: 'Regional Dashboard' }} />
         <Stack.Screen name="DiseaseIdentification" component={DiseaseIdentificationScreen} options={{ title: 'Disease Detection' }} />
         <Stack.Screen name="DiseaseUpload"         component={DiseaseUploadScreen}         options={{ title: 'Upload Leaf Image' }} />
-        <Stack.Screen name="DiseaseResult"         component={DiseaseResultScreen}         options={{ title: 'Detection Result' }} />
         <Stack.Screen name="VarietyHub"            component={VarietyHubScreen}            options={{ title: 'Variety Module' }} />
         <Stack.Screen name="VarietyIdentify"       component={VarietyIdentifyScreen}       options={{ title: 'Identify Variety' }} />
         <Stack.Screen name="VarietyInfo"           component={VarietyInfoScreen}           options={{ title: 'Variety Info' }} />
