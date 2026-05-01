@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // ⚠️ change IP to your PC IP
-const API_URL = "http://192.168.1.5:5000/api/auth";
+const API_URL = "http://169.254.231.41:5000/api/auth";
 
 export const registerUser = async (fullName, email, password) => {
   const res = await axios.post(`${API_URL}/register`, {
