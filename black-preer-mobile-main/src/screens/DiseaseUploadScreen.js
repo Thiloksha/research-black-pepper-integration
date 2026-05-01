@@ -26,7 +26,7 @@ const API_BASE_URL =
     ? 'http://localhost:5001'
     : 'http://192.168.8.110:5001';
 
-export default function DiseaseUploadScreen() {
+export default function DiseaseUploadScreen({ navigation }) {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [loading, setLoading] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
@@ -415,7 +415,9 @@ export default function DiseaseUploadScreen() {
 
                   {result.treatment ? (
                     <View style={styles.infoSection}>
-                      <Text style={styles.infoSectionTitle}>Recommended Treatment</Text>
+                      <Text style={styles.infoSectionTitle}>
+                        Recommended Treatment
+                      </Text>
                       <Text style={styles.descriptionText}>
                         {result.treatment}
                       </Text>
@@ -437,6 +439,14 @@ export default function DiseaseUploadScreen() {
                         ))}
                       </View>
                     )}
+
+                  <TouchableOpacity
+                    style={styles.historyButton}
+                    onPress={() => navigation.navigate('DiseaseHistory')}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={styles.historyButtonText}>📜 View History</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -995,5 +1005,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#1f6f43',
+  },
+
+  historyButton: {
+    marginTop: 18,
+    backgroundColor: '#f5f9f6',
+    borderWidth: 1,
+    borderColor: '#cfe3d6',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  historyButtonText: {
+    color: '#1f6f43',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
