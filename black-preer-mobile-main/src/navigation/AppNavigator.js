@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSelector } from 'react-redux';
 
 import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
@@ -100,10 +101,14 @@ const headerShadow = Platform.select({
 
 // ── Navigator ───────────────────────────────────────────────────
 export default function AppNavigator() {
+  const { currentUser } = useSelector((state) => state.user);
+
+  const initialRoute = currentUser ? 'Home' : 'SignIn';
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="SignIn"
+        initialRouteName={initialRoute}
         screenOptions={({ navigation, route }) => ({
           headerStyle: {
             backgroundColor: '#2d7a4f',
