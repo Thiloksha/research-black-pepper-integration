@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 
-const LAPTOP_IP = "10.137.134.38";
+const LAPTOP_IP = "192.168.1.5";
 
 export const API_BASE =
   Platform.OS === "web"

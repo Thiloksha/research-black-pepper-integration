@@ -75,8 +75,11 @@ router.post('/', localUpload.single('file'), async (req, res) => {
         originalName: req.file.originalname || '',
       },
       aiAnalysis: aiResult,
-      accepted: aiResult.accepted !== false,
-      stageA: aiResult.stageA || {},
+      accepted: !aiResult.rejected,
+      stageA: {
+        label: aiResult.stageA?.label || '',
+        confidence: aiResult.stageA?.confidence || 0,
+      },
       deviceInfo: req.headers['user-agent'] || '',
     });
 
@@ -102,6 +105,7 @@ router.post('/', localUpload.single('file'), async (req, res) => {
       error: 'Image prediction failed',
       details: error.message,
     });
+    console.error('❌ Full error:', error);
   }
 });
 
@@ -128,6 +132,34 @@ router.get('/history', async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+// ── DELETE ALL HISTORY ─────────────────────────────
+router.delete('/', async (req, res) => {
+  try {
+    const records = await DiseasePrediction.find();
+
+    // delete cloud images (optional but recommended)
+    const { deleteFromCloudinary } = require('../config/cloudinary');
+
+    for (const record of records) {
+      if (record.image?.publicId) {
+        await deleteFromCloudinary(record.image.publicId);
+      }
+    }
+
+    await DiseasePrediction.deleteMany({});
+
+    return res.json({
+      success: true,
+      message: 'All history cleared'
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message
+    });
   }
 });
 

@@ -20,7 +20,7 @@ const { width } = Dimensions.get('window');
 const isSmallScreen = width < 480;
 const isWideScreen = width >= 768;
 
-const API_BASE_URL = 'http://10.137.134.38:5000';
+const API_BASE_URL = 'http://192.168.1.5:5000';
 
 export default function DiseaseUploadScreen({ navigation }) {
   const [selectedAsset, setSelectedAsset] = useState(null);

@@ -22,8 +22,8 @@ const isWideScreen = width >= 768;
 
 const API_BASE_URL =
   Platform.OS === "web"
-    ? "http://localhost:5001"
-    : "http://192.168.8.110:5001";
+    ? "http://localhost:5000"
+    : "http://192.168.1.5:5000";
 
 export default function DiseaseHistoryScreen({ navigation }) {
   const [history, setHistory] = useState([]);
@@ -33,8 +33,8 @@ export default function DiseaseHistoryScreen({ navigation }) {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/detections`);
-      setHistory(Array.isArray(response.data) ? response.data : []);
+      const response = await axios.get(`${API_BASE_URL}/api/predict-image/history`);
+      setHistory(response.data.data || []);
     } catch (error) {
       console.log("History load error:", error);
       Alert.alert("Error", "Failed to load detection history.");
@@ -57,8 +57,12 @@ export default function DiseaseHistoryScreen({ navigation }) {
       if (!confirmed) return;
 
       try {
-        await axios.delete(`${API_BASE_URL}/api/detections`);
+        await axios.delete(`${API_BASE_URL}/api/predict-image`);
+        await loadHistory();
+        Alert.alert("Success", "History cleared successfully");
         setHistory([]);
+        const res = await axios.delete(`${API_BASE_URL}/api/predict-image`);
+        console.log("Clear response:", res.data);
       } catch (error) {
         console.log("Clear history error:", error);
         Alert.alert("Error", "Failed to clear history.");
@@ -76,7 +80,7 @@ export default function DiseaseHistoryScreen({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              await axios.delete(`${API_BASE_URL}/api/detections`);
+              await axios.delete(`${API_BASE_URL}/api/predict-image`);
               setHistory([]);
             } catch (error) {
               console.log("Clear history error:", error);
@@ -101,8 +105,8 @@ export default function DiseaseHistoryScreen({ navigation }) {
       if (!confirmed) return;
 
       try {
-        await axios.delete(`${API_BASE_URL}/api/detections/${id}`);
-        setHistory((prev) => prev.filter((item) => item.id !== id));
+        await axios.delete(`${API_BASE_URL}/api/predict-image/${id}`);
+        setHistory((prev) => prev.filter((item) => item._id !== id));
       } catch (error) {
         console.log("Delete single history error:", error);
         Alert.alert("Error", "Failed to delete this result.");
@@ -120,8 +124,8 @@ export default function DiseaseHistoryScreen({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              await axios.delete(`${API_BASE_URL}/api/detections/${id}`);
-              setHistory((prev) => prev.filter((item) => item.id !== id));
+              await axios.delete(`${API_BASE_URL}/api/predict-image/${id}`);
+              setHistory((prev) => prev.filter((item) => item._id !== id));
             } catch (error) {
               console.log("Delete single history error:", error);
               Alert.alert("Error", "Failed to delete this result.");
@@ -167,11 +171,11 @@ export default function DiseaseHistoryScreen({ navigation }) {
   const handleOpenItem = (item) => {
     navigation.navigate("DiseaseResult", {
       image: getFullImageUrl(item.image),
-      disease: item.disease,
-      confidence: item.confidence,
-      treatment: item.treatment,
-      description: item.description,
-      probabilities: item.probabilities,
+      disease: item.aiAnalysis?.prediction,
+      confidence: item.aiAnalysis?.confidence,
+      treatment: item.aiAnalysis?.treatment,
+      description: item.aiAnalysis?.description,
+      probabilities: item.aiAnalysis?.prediction?.allPredictions,
       lowConfidence: item.lowConfidence,
     });
   };
@@ -244,16 +248,16 @@ export default function DiseaseHistoryScreen({ navigation }) {
             </Text>
 
             {history.map((item, index) => {
-              const fullImageUrl = getFullImageUrl(item.image);
+              const fullImageUrl = getFullImageUrl(item.image?.url);
               const canShowImage = isDisplayableImage(fullImageUrl);
-              const cardKey = item.id ?? `${item.savedAt ?? "item"}-${index}`;
+              const cardKey = item._id ?? `${new Date(item.createdAt).toLocaleString() ?? "item"}-${index}`;
 
               return (
                 <View
                   key={cardKey}
                   style={styles.cardWrapper}
                   onMouseEnter={() =>
-                    Platform.OS === "web" && setHoveredId(item.id)
+                    Platform.OS === "web" && setHoveredId(item._id)
                   }
                   onMouseLeave={() =>
                     Platform.OS === "web" && setHoveredId(null)
@@ -269,7 +273,7 @@ export default function DiseaseHistoryScreen({ navigation }) {
 
                           setHistory((prev) =>
                             prev.map((historyItem) =>
-                              historyItem.id === item.id
+                              historyItem._id === item.id
                                 ? { ...historyItem, imageError: true }
                                 : historyItem
                             )
@@ -288,7 +292,7 @@ export default function DiseaseHistoryScreen({ navigation }) {
                     <View style={styles.cardContent}>
                       <View style={styles.cardTopRow}>
                         <Text style={styles.disease}>
-                          {item.disease || "Unknown disease"}
+                          {item.aiAnalysis?.prediction || "Unknown disease"}
                         </Text>
 
                         {item.lowConfidence ? (
@@ -301,14 +305,14 @@ export default function DiseaseHistoryScreen({ navigation }) {
                       </View>
 
                       <Text style={styles.metaText}>
-                        Confidence: {item.confidence || "N/A"}
+                        Confidence: {item.aiAnalysis?.confidence ? `${item.aiAnalysis.confidence}%` : "N/A"}
                       </Text>
                       <Text style={styles.metaText}>
-                        Saved: {item.savedAt || "Unknown date"}
+                        Saved: {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Unknown date"}
                       </Text>
 
                       <Text style={styles.shortDesc}>
-                        {getShortDescription(item.description)}
+                        {item.aiAnalysis?.description || "No description available."}
                       </Text>
 
                       <View style={styles.cardFooter}>
@@ -323,7 +327,7 @@ export default function DiseaseHistoryScreen({ navigation }) {
 
                           <TouchableOpacity
                             style={styles.deleteItemButton}
-                            onPress={() => deleteSingleItem(item.id)}
+                            onPress={() => deleteSingleItem(item._id)}
                             activeOpacity={0.85}
                           >
                             <Text style={styles.deleteItemButtonText}>
@@ -335,18 +339,18 @@ export default function DiseaseHistoryScreen({ navigation }) {
                     </View>
                   </View>
 
-                  {Platform.OS === "web" && hoveredId === item.id && (
+                  {Platform.OS === "web" && hoveredId === item._id && (
                     <View style={styles.tooltip}>
                       <Text style={styles.tooltipTitle}>Full Details</Text>
 
                       <Text style={styles.tooltipText}>
                         <Text style={styles.tooltipLabel}>Description: </Text>
-                        {item.description || "No description"}
+                        {item.aiAnalysis?.description || "No description"}
                       </Text>
 
                       <Text style={styles.tooltipText}>
                         <Text style={styles.tooltipLabel}>Treatment: </Text>
-                        {item.treatment || "No treatment advice"}
+                        {item.aiAnalysis?.advice || "No treatment advice"}
                       </Text>
 
                       {item.lowConfidence && (
