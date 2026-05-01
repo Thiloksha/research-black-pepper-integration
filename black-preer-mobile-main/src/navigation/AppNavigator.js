@@ -15,7 +15,6 @@ import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
 import DiseaseUploadScreen from '../screens/DiseaseUploadScreen';
-import DiseaseResultScreen from '../screens/DiseaseResultScreen';
 import VarietyHubScreen from '../screens/VarietyHubScreen';
 import VarietyIdentifyScreen from '../screens/VarietyIdentifyScreen';
 import VarietyInfoScreen from '../screens/VarietyInfoScreen';
@@ -34,7 +33,6 @@ const SCREEN_META = {
   Dashboard:             { icon: 'grid-outline'               },
   DiseaseIdentification: { icon: 'bug-outline'                },
   DiseaseUpload:         { icon: 'cloud-upload-outline'       },
-  DiseaseResult:         { icon: 'checkmark-circle-outline'   },
   VarietyHub:            { icon: 'leaf-outline'               },
   VarietyIdentify:       { icon: 'scan-outline'               },
   VarietyInfo:           { icon: 'information-circle-outline' },
