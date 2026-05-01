@@ -363,25 +363,6 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 26, fontWeight: '900', color: '#0f2618', marginBottom: 6, letterSpacing: -0.3 },
   formSubtitle: { fontSize: 14, color: '#6b8c78', lineHeight: 20 },
   fieldWrap: { marginBottom: 20 },
-<<<<<<< HEAD
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: '#2a4a38', marginBottom: 8, letterSpacing: 0.2 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f4faf6', borderWidth: 1.5, borderColor: '#d8ede0', borderRadius: 14, paddingHorizontal: 14, height: 52 },
-  inputWrapFocused: { borderColor: '#2d7a4f', backgroundColor: '#f0faf4' },
-  inputIconWrap: { marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: '#1a2e22', paddingVertical: 0 },
-  eyeBtn: { padding: 4, marginLeft: 8 },
-  signInBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 8, marginBottom: 24 },
-  signInBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 24 },
-  signInBtnText: { color: '#ffffff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
-  orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  orLine: { flex: 1, height: 1, backgroundColor: '#ddeee5' },
-  orText: { fontSize: 12, color: '#8aab97', fontWeight: '600' },
-  guestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#c8e0d2', borderRadius: 14, paddingVertical: 14, backgroundColor: '#f8fdf9', marginBottom: 24 },
-  guestBtnText: { fontSize: 15, color: '#3a5e4a', fontWeight: '700' },
-  signUpRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  signUpText: { fontSize: 14, color: '#7a9985' },
-  signUpLink: { fontSize: 14, color: '#2d7a4f', fontWeight: '800' },
-=======
   fieldLabel: {
     fontSize: 13,
     fontWeight: '700',
@@ -504,5 +485,4 @@ const styles = StyleSheet.create({
     color: '#2d7a4f',
     fontWeight: '800',
   },
->>>>>>> 6fb4b44a85b95978bae67e8b85a32832f1689b29
 });

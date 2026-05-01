@@ -66,11 +66,11 @@ const injectWebInputReset = () => {
 };
 
 export default function SignInScreen({ navigation }) {
-  // const [email, setEmail] = useState('');
-  // const [password, setPassword] = useState('');
-  // const [showPassword, setShowPassword] = useState(false);
-  // const [emailFocused, setEmailFocused] = useState(false);
-  // const [passFocused, setPassFocused] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
 
   const { width } = useWindowDimensions();
   const isLarge = width >= 768;
@@ -103,9 +103,6 @@ export default function SignInScreen({ navigation }) {
     ]).start();
   }, []);
 
-<<<<<<< HEAD
-  const cardWidth = isLarge ? Math.min(460, width * 0.45) : Math.min(width - 40, 420);
-=======
   const handleSignIn = () => {
     console.log('Signing in with:', email, password);
     navigation.navigate('Landing');
@@ -114,7 +111,6 @@ export default function SignInScreen({ navigation }) {
   const cardWidth = isLarge
     ? Math.min(460, width * 0.45)
     : Math.min(width - 40, 420);
->>>>>>> 6fb4b44a85b95978bae67e8b85a32832f1689b29
 
   return (
     <KeyboardAvoidingView
@@ -197,6 +193,17 @@ export default function SignInScreen({ navigation }) {
                 <SignInForm
                   navigation={navigation}
                   isSmall={isSmall}
+                  email={email}
+                  setEmail={setEmail}
+                  password={password}
+                  setPassword={setPassword}
+                  showPassword={showPassword}
+                  setShowPassword={setShowPassword}
+                  emailFocused={emailFocused}
+                  setEmailFocused={setEmailFocused}
+                  passFocused={passFocused}
+                  setPassFocused={setPassFocused}
+                  handleSignIn={handleSignIn}
                 />
               </Animated.View>
             </View>
@@ -233,34 +240,6 @@ export default function SignInScreen({ navigation }) {
   );
 }
 
-<<<<<<< HEAD
-function SignInForm({ navigation, isSmall }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passFocused, setPassFocused] = useState(false);
-
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      alert('Please enter email and password');
-      return;
-    }
-    try {
-      await loginUser(email, password);
-      navigation.navigate('Landing');
-    } catch (error) {
-      if (error.code === 'auth/user-not-found') {
-        alert('No account found with this email');
-      } else if (error.code === 'auth/wrong-password') {
-        alert('Incorrect password');
-      } else {
-        alert(error.message);
-      }
-    }
-  };
-
-=======
 function SignInForm({
   email,
   setEmail,
@@ -276,7 +255,6 @@ function SignInForm({
   navigation,
   isSmall,
 }) {
->>>>>>> 6fb4b44a85b95978bae67e8b85a32832f1689b29
   return (
     <View>
       <View style={styles.formHeader}>
