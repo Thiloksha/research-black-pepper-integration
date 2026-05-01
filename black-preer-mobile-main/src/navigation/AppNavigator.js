@@ -165,7 +165,6 @@ export default function AppNavigator() {
         <Stack.Screen name="Dashboard"             component={DashboardScreen}             options={{ title: 'Regional Dashboard' }} />
         <Stack.Screen name="DiseaseIdentification" component={DiseaseIdentificationScreen} options={{ title: 'Disease Detection' }} />
         <Stack.Screen name="DiseaseUpload"         component={DiseaseUploadScreen}         options={{ title: 'Upload Leaf Image' }} />
-        <Stack.Screen name="DiseaseResult"         component={DiseaseResultScreen}         options={{ title: 'Detection Result' }} />
         <Stack.Screen name="VarietyHub"            component={VarietyHubScreen}            options={{ title: 'Variety Module' }} />
         <Stack.Screen name="VarietyIdentify"       component={VarietyIdentifyScreen}       options={{ title: 'Identify Variety' }} />
         <Stack.Screen name="VarietyInfo"           component={VarietyInfoScreen}           options={{ title: 'Variety Info' }} />
