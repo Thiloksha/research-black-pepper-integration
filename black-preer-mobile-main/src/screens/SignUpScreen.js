@@ -36,6 +36,34 @@ const shadowBtn = Platform.select({
   web: { boxShadow: '0px 6px 24px rgba(45,122,79,0.32)' },
 });
 
+const injectWebInputReset = () => {
+  if (Platform.OS !== 'web') return;
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('pepper-input-reset')) return;
+
+  const style = document.createElement('style');
+  style.id = 'pepper-input-reset';
+  style.innerHTML = `
+    input,
+    textarea {
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+
+    input:focus,
+    textarea:focus,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+};
+
 export default function SignUpScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -59,6 +87,8 @@ export default function SignUpScreen({ navigation }) {
   const logoScale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
+    injectWebInputReset();
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -315,6 +345,7 @@ function SignUpForm({
             placeholder="Enter your full name"
             placeholderTextColor="#b0c4b8"
             autoCapitalize="words"
+            underlineColorAndroid="transparent"
             onFocus={() => setNameFocused(true)}
             onBlur={() => setNameFocused(false)}
           />
@@ -323,9 +354,7 @@ function SignUpForm({
 
       <View style={styles.fieldWrap}>
         <Text style={styles.fieldLabel}>Email address</Text>
-        <View
-          style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}
-        >
+        <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
           <View style={styles.inputIconWrap}>
             <Ionicons
               name="mail-outline"
@@ -342,6 +371,7 @@ function SignUpForm({
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            underlineColorAndroid="transparent"
             onFocus={() => setEmailFocused(true)}
             onBlur={() => setEmailFocused(false)}
           />
@@ -359,13 +389,14 @@ function SignUpForm({
             />
           </View>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={styles.input}
             value={password}
             onChangeText={setPassword}
             placeholder="Create a password"
             placeholderTextColor="#b0c4b8"
             secureTextEntry={!showPassword}
             autoCapitalize="none"
+            underlineColorAndroid="transparent"
             onFocus={() => setPassFocused(true)}
             onBlur={() => setPassFocused(false)}
           />
@@ -385,12 +416,7 @@ function SignUpForm({
 
       <View style={styles.fieldWrap}>
         <Text style={styles.fieldLabel}>Confirm password</Text>
-        <View
-          style={[
-            styles.inputWrap,
-            confirmFocused && styles.inputWrapFocused,
-          ]}
-        >
+        <View style={[styles.inputWrap, confirmFocused && styles.inputWrapFocused]}>
           <View style={styles.inputIconWrap}>
             <Ionicons
               name="shield-checkmark-outline"
@@ -399,13 +425,14 @@ function SignUpForm({
             />
           </View>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={styles.input}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder="Re-enter your password"
             placeholderTextColor="#b0c4b8"
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
+            underlineColorAndroid="transparent"
             onFocus={() => setConfirmFocused(true)}
             onBlur={() => setConfirmFocused(false)}
           />
@@ -660,6 +687,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     letterSpacing: 0.2,
   },
+
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -669,6 +697,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 52,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        boxShadow: 'none',
+      },
+    }),
   },
   inputWrapFocused: {
     borderColor: '#2d7a4f',
@@ -677,9 +712,22 @@ const styles = StyleSheet.create({
   inputIconWrap: { marginRight: 10 },
   input: {
     flex: 1,
+    minWidth: 0,
     fontSize: 15,
     color: '#1a2e22',
     paddingVertical: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        outlineColor: 'transparent',
+        boxShadow: 'none',
+        borderWidth: 0,
+        borderColor: 'transparent',
+      },
+    }),
   },
   eyeBtn: {
     padding: 4,
