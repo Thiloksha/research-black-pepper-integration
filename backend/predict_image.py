@@ -26,7 +26,7 @@ MODEL_NAME = "EfficientNetB0"
 PEPPER_IDX = 1
 
 # leaf detector threshold
-LEAF_THRESHOLD = 0.55
+LEAF_THRESHOLD = 0.75
 
 # disease thresholds
 DISEASE_THRESHOLD = 55.0
