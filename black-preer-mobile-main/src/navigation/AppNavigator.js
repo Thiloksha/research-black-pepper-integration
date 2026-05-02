@@ -20,6 +20,7 @@ import VarietyIdentifyScreen from '../screens/VarietyIdentifyScreen';
 import VarietyInfoScreen from '../screens/VarietyInfoScreen';
 import VarietyHistoryScreen from '../screens/VarietyHistoryScreen';
 import DiseaseHistoryScreen from '../screens/DiseaseHistoryScreen';
+import MainTabNavigator from './MainTabNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -122,7 +123,7 @@ const headerShadow = Platform.select({
 export default function AppNavigator() {
   const { currentUser } = useSelector((state) => state.user);
 
-  const initialRoute = currentUser ? 'Home' : 'SignIn';
+  const initialRoute = currentUser ? 'MainTabs' : 'SignIn';
 
   return (
     <NavigationContainer linking={linking}>
@@ -184,9 +185,9 @@ export default function AppNavigator() {
         />
 
         <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'Health & Post Harvest' }}
+          name="MainTabs"
+          component={MainTabNavigator}
+          options={{ headerShown: false }}
         />
 
         <Stack.Screen
