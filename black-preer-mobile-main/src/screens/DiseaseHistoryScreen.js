@@ -23,7 +23,7 @@ const isWideScreen = width >= 768;
 const API_BASE_URL =
   Platform.OS === "web"
     ? "http://localhost:5000"
-    : "http://192.168.8.110:5000";
+    : "http://10.137.134.38:5000";
 
 export default function DiseaseHistoryScreen({ navigation }) {
   const [history, setHistory] = useState([]);
