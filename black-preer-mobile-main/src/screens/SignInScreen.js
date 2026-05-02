@@ -104,7 +104,7 @@ export default function SignInScreen({ navigation }) {
 
   const handleSignIn = () => {
     console.log('Signing in with:', email, password);
-    navigation.navigate('Landing');
+    navigation.replace('MainTabs');
   };
 
   const cardWidth = isLarge
