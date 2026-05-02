@@ -14,13 +14,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
+import { API_BASE } from '../config/api';
 
 const { width } = Dimensions.get('window');
 
 const isSmallScreen = width < 480;
 const isWideScreen = width >= 768;
 
-const API_BASE_URL = 'http://192.168.1.5:5000';
+const API_BASE_URL = API_BASE;
 
 export default function DiseaseUploadScreen({ navigation }) {
   const [selectedAsset, setSelectedAsset] = useState(null);

@@ -14,16 +14,14 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
+import { API_BASE } from "../config/api";
 
 const { width } = Dimensions.get("window");
 
 const isSmallScreen = width < 480;
 const isWideScreen = width >= 768;
 
-const API_BASE_URL =
-  Platform.OS === "web"
-    ? "http://localhost:5000"
-    : "http://192.168.1.5:5000";
+const API_BASE_URL = API_BASE;
 
 export default function DiseaseHistoryScreen({ navigation }) {
   const [history, setHistory] = useState([]);
