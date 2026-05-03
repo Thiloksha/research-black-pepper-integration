@@ -14,6 +14,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { registerUser } from '../services/authService';
+import { useDispatch } from 'react-redux';
+import { signInSuccess } from '../redux/slices/userSlice';
 
 const shadowCard = Platform.select({
   ios: { shadowColor: '#1a3a2a', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.12, shadowRadius: 28 },
@@ -150,6 +152,7 @@ export default function SignUpScreen({ navigation }) {
 
 // ✅ All state lives here inside the form
 function SignUpForm({ navigation, isSmall }) {
+  const dispatch = useDispatch();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -175,8 +178,10 @@ function SignUpForm({ navigation, isSmall }) {
       return;
     }
     try {
-      await registerUser(fullName, email, password);
-      navigation.navigate('Landing');
+      // await registerUser(fullName, email, password);
+      const data = await registerUser(fullName, email, password);
+      dispatch(signInSuccess(data));
+      navigation.navigate('MainTabs');
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
         alert('This email is already registered');

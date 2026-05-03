@@ -3,7 +3,7 @@ import { Platform, useWindowDimensions, View, ScrollView, TouchableOpacity, Text
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import HomeScreen from '../screens/HomeScreen';
+import LandingScreen from '../screens/LandingScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
 import VarietyHubScreen from '../screens/VarietyHubScreen';
 import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
@@ -133,7 +133,7 @@ export default function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ title: 'Home' }} />
+      <Tab.Screen name="HomeTab" component={LandingScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="DiseaseTab" component={DiseaseIdentificationScreen} options={{ title: 'Disease' }} />
       <Tab.Screen name="VarietyTab" component={VarietyHubScreen} options={{ title: 'Variety' }} />
       <Tab.Screen name="SoilTab" component={SoilAnalysisScreen} options={{ title: 'Soil' }} />

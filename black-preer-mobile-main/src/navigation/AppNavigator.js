@@ -28,8 +28,8 @@ const linking = {
   prefixes: ['http://localhost:19006', 'http://localhost:8081', 'http://localhost:3000'],
   config: {
     screens: {
-      Landing: '',
-      SignIn: 'signin',
+      Landing: 'landing',
+      SignIn: '',
       SignUp: 'signup',
       Home: 'home',
       Analysis: 'analysis',
@@ -123,6 +123,8 @@ const headerShadow = Platform.select({
 export default function AppNavigator() {
   const { currentUser } = useSelector((state) => state.user);
 
+  console.log('currentUser:', currentUser);
+console.log('initialRoute:', currentUser ? 'MainTabs' : 'SignIn');
   const initialRoute = currentUser ? 'MainTabs' : 'SignIn';
 
   return (
