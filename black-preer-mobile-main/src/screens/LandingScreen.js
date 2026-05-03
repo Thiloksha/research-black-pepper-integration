@@ -22,7 +22,7 @@ const MODULES = [
     accent: '#2d7a4f',
     lightAccent: '#e8f5ee',
     borderAccent: '#b8dfc9',
-    navigate: 'VarietyHub',
+    navigate: 'VarietyTab'
   },
   {
     key: 'disease',
@@ -32,7 +32,7 @@ const MODULES = [
     accent: '#b05c1a',
     lightAccent: '#fdf0e6',
     borderAccent: '#f0ceaa',
-    navigate: 'DiseaseIdentification',
+    navigate: 'DiseaseTab',
   },
   {
     key: 'health',
