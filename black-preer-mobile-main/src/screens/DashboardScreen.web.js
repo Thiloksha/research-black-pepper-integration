@@ -57,13 +57,16 @@ export default function DashboardScreen() {
                 <Text style={styles.sectionSubtitle}>Monitoring soil health across local farms.</Text>
 
                 <View style={styles.webMapPlaceholder}>
-                    <Text style={styles.webMapTitle}>Map preview is not available on web</Text>
-                    <Text style={styles.webMapText}>
-                        This screen uses react-native-maps, which is supported on mobile.
-                    </Text>
-                    <Text style={styles.webMapText}>
-                        Open this app in Expo Go or Android emulator to view the live map.
-                    </Text>
+                    <iframe
+                        title="Jaffna Map"
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d125745.74852655823!2d79.94821612450531!3d9.664426577884451!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3afe53fd7be66aa5%3A0xc7a1d00dc6f46ce!2sJaffna%2C%20Sri%20Lanka!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus"
+                        width="100%"
+                        height="300"
+                        style={{ border: 0, borderRadius: 15 }}
+                        allowFullScreen=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                    />
                 </View>
 
                 <View style={styles.legendContainer}>

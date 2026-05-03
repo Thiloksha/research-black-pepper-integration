@@ -6,8 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import LandingScreen from '../screens/LandingScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
 import VarietyHubScreen from '../screens/VarietyHubScreen';
-import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
-import DashboardScreen from '../screens/DashboardScreen';
+import SoilHubScreen from '../screens/SoilHubScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -53,7 +52,6 @@ function CustomTabBar({ state, descriptors, navigation }) {
           if (route.name === 'DiseaseTab') iconName = 'bug-outline';
           if (route.name === 'VarietyTab') iconName = 'leaf-outline';
           if (route.name === 'SoilTab') iconName = 'flask-outline';
-          if (route.name === 'DashboardTab') iconName = 'grid-outline';
 
           return (
             <TouchableOpacity
@@ -127,7 +125,6 @@ export default function MainTabNavigator() {
           if (route.name === 'DiseaseTab') icon = 'bug-outline';
           if (route.name === 'VarietyTab') icon = 'leaf-outline';
           if (route.name === 'SoilTab') icon = 'flask-outline';
-          if (route.name === 'DashboardTab') icon = 'grid-outline';
 
           return <Ionicons name={icon} size={size} color={color} />;
         },
@@ -136,8 +133,7 @@ export default function MainTabNavigator() {
       <Tab.Screen name="HomeTab" component={LandingScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="DiseaseTab" component={DiseaseIdentificationScreen} options={{ title: 'Disease' }} />
       <Tab.Screen name="VarietyTab" component={VarietyHubScreen} options={{ title: 'Variety' }} />
-      <Tab.Screen name="SoilTab" component={SoilAnalysisScreen} options={{ title: 'Soil' }} />
-      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: 'Dashboard' }} />
+      <Tab.Screen name="SoilTab" component={SoilHubScreen} options={{ title: 'Soil' }} />
     </Tab.Navigator>
   );
 }

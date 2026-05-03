@@ -145,22 +145,29 @@ function SignInForm({ navigation, isSmall }) {
     dispatch(signInStart());
 
     try {
-      // await loginUser(email, password);
       const data = await loginUser(email, password);
       dispatch(signInSuccess(data));
-      navigation.replace('MainTabs'); //goes to sidebar
-
+      navigation.replace('MainTabs');
     } catch (error) {
       dispatch(signInFailure(error.message));
 
-      if (error.code === 'auth/user-not-found') {
-        alert('No account found with this email');
-      } else if (error.code === 'auth/wrong-password') {
-        alert('Incorrect password');
+      // Network / backend offline
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.message?.includes('ECONNREFUSED')) {
+        alert('Cannot connect to server.\n\nMake sure your backend is running, then try again.\n\nYou can also tap "Continue as Guest" to explore the app.');
+      } else if (error.response?.status === 401) {
+        alert('Incorrect email or password. Please try again.');
+      } else if (error.response?.status === 404) {
+        alert('No account found with this email. Please sign up first.');
       } else {
-        alert(error.message);
+        alert('Sign in failed: ' + (error.response?.data?.message || error.message));
       }
     }
+  };
+
+  const handleGuestLogin = () => {
+    // Navigate as guest without backend auth
+    dispatch(signInSuccess({ _id: 'guest', fullName: 'Guest User', email: 'guest@peppersense.ai', isGuest: true }));
+    navigation.replace('MainTabs');
   };
 
   return (
@@ -234,7 +241,7 @@ function SignInForm({ navigation, isSmall }) {
         <View style={styles.orLine} />
       </View>
 
-      <TouchableOpacity style={styles.guestBtn} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.guestBtn} activeOpacity={0.8} onPress={handleGuestLogin}>
         <Ionicons name="person-outline" size={17} color="#4a6857" style={{ marginRight: 8 }} />
         <Text style={styles.guestBtnText}>Continue as Guest</Text>
       </TouchableOpacity>
