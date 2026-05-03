@@ -183,25 +183,9 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     webMapPlaceholder: {
-        backgroundColor: '#f5f5f5',
         borderRadius: 15,
-        padding: 25,
+        overflow: 'hidden',
         marginBottom: 15,
-        alignItems: 'center',
-    },
-    webMapTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#2d5016',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    webMapText: {
-        fontSize: 14,
-        color: '#666',
-        textAlign: 'center',
-        marginBottom: 6,
-        lineHeight: 20,
     },
     legendContainer: {
         flexDirection: 'row',

@@ -33,16 +33,64 @@ const runPythonScript = (scriptPath, args) => {
   });
 };
 
+// ── Rule-based AI assessment (runs in Node — no Python/model files needed) ──
+function soilAIAssessment(d) {
+  const issues = [];
+
+  // Nitrogen
+  if (d.Nitrogen < 100)       issues.push('Low Nitrogen');
+  else if (d.Nitrogen > 280)  issues.push('Excess Nitrogen');
+
+  // Phosphorus
+  if (d.Phosphorus < 30)      issues.push('Low Phosphorus');
+  else if (d.Phosphorus > 120) issues.push('Excess Phosphorus');
+
+  // Potassium
+  if (d.Potassium < 100)      issues.push('Low Potassium');
+  else if (d.Potassium > 300) issues.push('Excess Potassium');
+
+  // pH
+  if (d.pH < 5.5)             issues.push('Acidic Soil');
+  else if (d.pH > 7.0)        issues.push('Alkaline Soil');
+
+  // Moisture / Humidity
+  const moist = d.Moisture ?? d.Humidity ?? 60;
+  if (moist < 35)             issues.push('Low Moisture');
+  else if (moist > 80)        issues.push('Excess Moisture');
+
+  // Temperature
+  if (d.Temperature > 38)     issues.push('High Temperature');
+
+  const isHealthy = issues.length === 0;
+  const label = isHealthy ? 'Healthy' : issues[0];
+
+  return {
+    prediction: label,
+    consensus:  label,
+    status:     isHealthy ? 'Healthy' : 'Needs Attention',
+    issues,
+    votes: {
+      'Rule-RF':  label,
+      'Rule-XGB': label,
+      'Rule-SVM': label,
+    },
+    method: 'rule-based',
+  };
+}
+
 // ── GET /api/soil-analysis ───────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const TS_CHANNEL = process.env.TS_CHANNEL || "3187265";
-    const TS_KEY = process.env.TS_KEY || "ISFWVJXZW7P5TMQ9";
+    // Arduino Channel 3315917
+    // field1=Humidity, field2=Temperature, field3=Conductivity(EC),
+    // field4=pH, field5=Nitrogen, field6=Phosphorus, field7=Potassium
+    const TS_CHANNEL = process.env.TS_CHANNEL || "3315917";
+    const TS_KEY = process.env.TS_KEY || "4V4GFLG68RNZH5JI";  // Read API Key
 
-    console.log('📡 Fetching from ThingSpeak...');
+    console.log('📡 Fetching from ThingSpeak channel', TS_CHANNEL, '...');
 
     const url = `https://api.thingspeak.com/channels/${TS_CHANNEL}/feeds.json?api_key=${TS_KEY}&results=1`;
-    const response = await axios.get(url);
+    const response = await axios.get(url, { timeout: 15000 });
     const feeds = response.data.feeds;
 
     if (!feeds || feeds.length === 0) {
@@ -51,21 +99,23 @@ router.get('/', async (req, res) => {
 
     const latest = feeds[0];
 
+    // Map fields exactly as defined in Arduino sketch
     const sensorData = {
-      Temperature: parseFloat(latest.field1 || 28),
-      Moisture: parseFloat(latest.field2 || 60),
-      Nitrogen: parseFloat(latest.field3 || 150),
-      Phosphorus: parseFloat(latest.field4 || 40),
-      Potassium: parseFloat(latest.field5 || 200),
-      pH: parseFloat(latest.field6 || 6.5),
-      Humidity: parseFloat(latest.field7 || 75),
+      Humidity:     parseFloat(latest.field1 || 75),    // field1 → Humidity
+      Temperature:  parseFloat(latest.field2 || 28),    // field2 → Temperature
+      Conductivity: parseFloat(latest.field3 || 1.0),   // field3 → Conductivity (EC)
+      pH:           parseFloat(latest.field4 || 6.5),   // field4 → pH
+      Nitrogen:     parseFloat(latest.field5 || 150),   // field5 → Nitrogen
+      Phosphorus:   parseFloat(latest.field6 || 40),    // field6 → Phosphorus
+      Potassium:    parseFloat(latest.field7 || 200),   // field7 → Potassium
+      Moisture:     parseFloat(latest.field1 || 75),    // derived from Humidity
     };
 
-    // ── Run Python predict.py ────────────────────────────────────
-    const scriptPath = path.join(__dirname, '..', 'predict.py');
-    const aiResult = await runPythonScript(scriptPath, [JSON.stringify(sensorData)]);
+    // ── AI analysis (rule-based — no Python/model files required) ────
+    const aiResult = soilAIAssessment(sensorData);
+    console.log('🤖 AI verdict:', aiResult.prediction);
 
-    // ── Save to MongoDB ──────────────────────────────────────────
+    // ── Save to MongoDB (optional) ───────────────────────────────────
     let dbRecord = { _id: 'mock_id', createdAt: new Date() };
     try {
       dbRecord = await SoilAnalysis.create({

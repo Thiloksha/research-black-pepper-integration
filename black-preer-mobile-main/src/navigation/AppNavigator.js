@@ -131,9 +131,6 @@ const headerShadow = Platform.select({
 
 export default function AppNavigator() {
   const { currentUser } = useSelector((state) => state.user);
-
-  console.log('currentUser:', currentUser);
-console.log('initialRoute:', currentUser ? 'MainTabs' : 'SignIn');
   const initialRoute = currentUser ? 'MainTabs' : 'SignIn';
 
   return (

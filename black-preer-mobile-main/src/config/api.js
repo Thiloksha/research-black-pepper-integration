@@ -8,6 +8,8 @@ export const API_BASE =
     : `http://${LAPTOP_IP}:5000`;
 
 export const WEATHER_URL = `${API_BASE}/api/weather`;
+export const FERTILIZER_URL = `${API_BASE}/api/fertilizer-recommendation`;
+export const SOIL_ANALYSIS_URL = `${API_BASE}/api/soil-analysis`;
 
 // export const API_BASE =
 //   Platform.OS === "web"
