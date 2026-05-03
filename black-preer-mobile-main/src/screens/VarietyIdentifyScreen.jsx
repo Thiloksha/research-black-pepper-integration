@@ -106,6 +106,12 @@ export default function VarietyIdentifyScreen() {
 
     try {
       const data = await predictImage(imageUri);
+
+      if (!data.accepted) {
+        setError(data.message || "Not a black pepper leaf");
+        return;
+      }
+
       setResult(data);
       await saveToHistory(data, imageUri);
     } catch (e) {

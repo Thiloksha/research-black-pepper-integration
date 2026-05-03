@@ -3,43 +3,57 @@ import sys
 import json
 import numpy as np
 from PIL import Image
-from tensorflow.keras.applications.resnet_v2 import preprocess_input
 import tensorflow as tf
+from tensorflow.keras.applications.resnet_v2 import preprocess_input
 
+# Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 
-MODEL_PATH = os.path.join(MODEL_DIR, "variety_resnet50v2.h5")
+VARIETY_MODEL_PATH = os.path.join(MODEL_DIR, "variety_resnet50v2.h5")
+LEAF_MODEL_PATH = os.path.join(MODEL_DIR, "leaf_detector.keras")
 
 IMG_SIZE = (224, 224)
-
 CLASS_NAMES = ["Butawerala", "Dingirala", "Kohukuburerala"]
 
+LEAF_THRESHOLD = 0.75 
 
-def load_model_only():
-    if not os.path.exists(MODEL_PATH):
-        print(json.dumps({"error": "Model not found"}))
-        sys.exit(1)
+# Globals
+leaf_model = None
+variety_model = None
 
-    return tf.keras.models.load_model(
-        MODEL_PATH,
+
+# Load Models
+def load_models():
+    global leaf_model, variety_model
+
+    if not os.path.exists(VARIETY_MODEL_PATH):
+        raise Exception(f"Variety model not found: {VARIETY_MODEL_PATH}")
+
+    if not os.path.exists(LEAF_MODEL_PATH):
+        raise Exception(f"Leaf detector not found: {LEAF_MODEL_PATH}")
+
+    # Variety model
+    variety_model = tf.keras.models.load_model(
+        VARIETY_MODEL_PATH,
         custom_objects={"preprocess_input": preprocess_input}
     )
 
+    # Leaf detector model
+    leaf_model = tf.keras.models.load_model(LEAF_MODEL_PATH)
 
+# Prepare Image
 def prepare_image(img_path):
     img = Image.open(img_path).convert("RGB")
     img = img.resize(IMG_SIZE)
 
     x = np.array(img, dtype=np.float32)
 
-    # ❗ IMPORTANT: NO preprocess_input here
-    # model already includes preprocessing layer
-
+    # IMPORTANT: no preprocess_input (model already has it)
     x = np.expand_dims(x, axis=0)
     return x
 
-
+# Main
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({"error": "Image path not provided"}))
@@ -52,11 +66,23 @@ def main():
         sys.exit(1)
 
     try:
-        model = load_model_only()
+        load_models()
 
         x = prepare_image(img_path)
 
-        preds = model.predict(x)[0]
+        # STEP 1: Leaf Detection
+        leaf_score = float(leaf_model.predict(x, verbose=0)[0][0])
+
+        if leaf_score < LEAF_THRESHOLD:
+            print(json.dumps({
+                "accepted": False,
+                "message": "Not a black pepper leaf",
+                "leaf_confidence": round(leaf_score * 100, 2)
+            }))
+            sys.exit(0)
+
+        # STEP 2: Variety Prediction
+        preds = variety_model.predict(x, verbose=0)[0]
 
         pred_idx = int(np.argmax(preds))
         pred_label = CLASS_NAMES[pred_idx]
@@ -75,9 +101,12 @@ def main():
         }
 
         print(json.dumps(result))
+        sys.exit(0)
 
     except Exception as e:
-        print(json.dumps({"error": str(e)}))
+        print(json.dumps({
+            "error": str(e)
+        }))
         sys.exit(1)
 
 

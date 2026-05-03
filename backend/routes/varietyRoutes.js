@@ -8,7 +8,7 @@ const { uploadVarietyImage, deleteFromCloudinary } = require('../config/cloudina
 const { localUpload, deleteLocalFile } = require('../middleware/uploadMiddleware');
 const VarietyPrediction = require('../models_db/VarietyPrediction');
 
-// ── Helper: Run Python Script ────────────────────────────────────
+//  Run Python Script 
 const runPythonScript = (scriptPath, args) => {
   return new Promise((resolve, reject) => {
     const pythonProcess = spawn('python', [scriptPath, ...args]);
@@ -61,6 +61,16 @@ router.post('/', localUpload.single('image'), async (req, res) => {
     // ── Step 1: Run Python prediction ───────────────────────────
     const scriptPath = path.join(__dirname, '..', 'predict_variety.py');
     const predictionResult = await runPythonScript(scriptPath, [localFilePath]);
+
+    if (predictionResult.accepted === false) {
+      deleteLocalFile(localFilePath);
+
+      return res.status(200).json({
+        success: true,
+        accepted: false,
+        message: predictionResult.message,
+      });
+    }
 
     console.log('🤖 Python prediction result:', predictionResult);
 
@@ -154,7 +164,35 @@ router.get('/history', async (req, res) => {
   }
 });
 
-// ── GET /api/variety-predict/:id ─────────────────────────────────
+// DELETE ALL HISTORY
+router.delete('/history', async (req, res) => {
+  try {
+    const records = await VarietyPrediction.find({});
+
+    for (const record of records) {
+      if (record?.image?.publicId) {
+        try {
+          await deleteFromCloudinary(record.image.publicId);
+        } catch (err) {
+          console.warn("Cloudinary delete failed:", record.image.publicId);
+        }
+      }
+    }
+
+    await VarietyPrediction.deleteMany({});
+
+    return res.json({
+      success: true,
+      message: 'All history deleted successfully'
+    });
+
+  } catch (error) {
+    console.error("Clear history error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/variety-predict/:id
 router.get('/:id', async (req, res) => {
   try {
     const record = await VarietyPrediction.findById(req.params.id);
@@ -169,7 +207,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ── DELETE /api/variety-predict/:id ──────────────────────────────
+// DELETE /api/variety-predict/:id 
 router.delete('/:id', async (req, res) => {
   try {
     const record = await VarietyPrediction.findById(req.params.id);

@@ -11,8 +11,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getVarietyHistory } from "../api/varietyHistory";
-import { deleteVarietyRecord } from "../api/varietyHistory";
+import { getVarietyHistory, deleteVarietyRecord, clearVarietyHistory } from "../api/varietyHistory";
+// import { deleteVarietyRecord } from "../api/varietyHistory";
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -61,37 +61,55 @@ export default function VarietyHistoryScreen() {
     }
   };
 
+  // const clearHistory = async () => {
+  //   try {
+  //     if (Platform.OS === 'web') {
+  //       const confirmed = window.confirm('Are you sure you want to delete all scan history?');
+  //       if (!confirmed) return;
+  //       await AsyncStorage.removeItem('scanHistory');
+  //       setHistory([]);
+  //       return;
+  //     }
+
+  //     Alert.alert(
+  //       'Clear History',
+  //       'Are you sure you want to delete all scan history?',
+  //       [
+  //         { text: 'Cancel', style: 'cancel' },
+  //         {
+  //           text: 'Delete',
+  //           style: 'destructive',
+  //           onPress: async () => {
+  //             try {
+  //               await AsyncStorage.removeItem('scanHistory');
+  //               setHistory([]);
+  //             } catch (e) {
+  //               console.log('Error clearing history:', e);
+  //             }
+  //           },
+  //         },
+  //       ]
+  //     );
+  //   } catch (e) {
+  //     console.log('Error clearing history:', e);
+  //   }
+  // };
+
   const clearHistory = async () => {
     try {
-      if (Platform.OS === 'web') {
-        const confirmed = window.confirm('Are you sure you want to delete all scan history?');
-        if (!confirmed) return;
-        await AsyncStorage.removeItem('scanHistory');
-        setHistory([]);
-        return;
-      }
+      const confirmed =
+        Platform.OS === "web"
+          ? window.confirm("Are you sure you want to delete all scan history?")
+          : true;
 
-      Alert.alert(
-        'Clear History',
-        'Are you sure you want to delete all scan history?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await AsyncStorage.removeItem('scanHistory');
-                setHistory([]);
-              } catch (e) {
-                console.log('Error clearing history:', e);
-              }
-            },
-          },
-        ]
-      );
+      if (!confirmed) return;
+
+      await clearVarietyHistory(); 
+      loadHistory();
+      // setHistory([]);
+
     } catch (e) {
-      console.log('Error clearing history:', e);
+      console.log("Error clearing history:", e);
     }
   };
 
@@ -286,12 +304,12 @@ export default function VarietyHistoryScreen() {
                               {item.confidence ?? '--'}%
                             </Text>
                           </View>
-                          <View style={styles.metricChip}>
+                          {/* <View style={styles.metricChip}>
                             <Text style={styles.metricChipLabel}>Stage</Text>
                             <Text style={styles.metricChipValue}>
                               {item.stage || '--'}
                             </Text>
-                          </View>
+                          </View> */}
                         </View>
 
                         <View style={styles.timestampRow}>
