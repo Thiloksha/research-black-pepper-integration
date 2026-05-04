@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { WEATHER_URL } from '../config/api';
 import { C, SHADOW } from '../components/theme';
-import BottomNav from '../components/BottomNav';
+// BottomNav removed — navigation is handled by MainTabNavigator
 
 const AUTO_REFRESH = 60;
 const TIMEOUT_MS = 12000;
@@ -143,7 +143,7 @@ export default function WeatherScreen({ navigation }) {
         const msg = e.response
           ? `Server error ${e.response.status}`
           : e.message?.match(/Network|ECONNREFUSED/i)
-            ? 'Cannot reach backend. Make sure it is running on port 5001.'
+            ? 'Cannot reach backend. Make sure it is running on port 5000.'
             : e.code === 'ECONNABORTED'
               ? 'Request timed out.'
               : e.message ?? 'Unexpected error.';
@@ -327,7 +327,7 @@ export default function WeatherScreen({ navigation }) {
             <View style={s.section}>
               <TouchableOpacity
                 style={s.navBtn}
-                onPress={() => navigation.navigate('SoilAnalysis')}
+                onPress={() => navigation.navigate('SoilMonitor')}
                 activeOpacity={0.85}
               >
                 <Ionicons name="leaf-outline" size={18} color={C.primary} />
@@ -355,7 +355,6 @@ export default function WeatherScreen({ navigation }) {
 
         <View style={{ height: 30 }} />
       </ScrollView>
-      <BottomNav navigation={navigation} active="Weather" />
     </View>
   );
 }

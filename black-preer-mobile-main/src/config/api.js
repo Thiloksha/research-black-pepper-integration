@@ -1,13 +1,16 @@
 import { Platform } from "react-native";
 
-const LAPTOP_IP = "10.13.149.211";
+const LAPTOP_IP = "10.85.86.72";
 
 export const API_BASE =
-  Platform.OS === "web"
+  process.env.EXPO_PUBLIC_API_URL || 
+  (Platform.OS === "web"
     ? "http://localhost:5000"
-    : `http://${LAPTOP_IP}:5000`;
+    : `http://${LAPTOP_IP}:5000`);
 
 export const WEATHER_URL = `${API_BASE}/api/weather`;
+export const FERTILIZER_URL = `${API_BASE}/api/fertilizer-recommendation`;
+export const SOIL_ANALYSIS_URL = `${API_BASE}/api/soil-analysis`;
 
 // export const API_BASE =
 //   Platform.OS === "web"

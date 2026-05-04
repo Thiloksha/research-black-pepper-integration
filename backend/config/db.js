@@ -1,40 +1,42 @@
-// // config/db.js
-
-// const mongoose = require('mongoose');
-
-// const connectDB = async () => {
-//   try {
-//     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-//       useNewUrlParser: true,
-//       useUnifiedTopology: true,
-//     });
-
-//     console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
-//   } catch (error) {
-//     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-//     process.exit(1);
-//   }
-// };
-
-// module.exports = connectDB;
-
 // config/db.js
 
 const mongoose = require('mongoose');
+const dns = require('dns');
 
-const connectDB = async () => {
-  try {
-    if (!process.env.MONGODB_URI) {
-      console.warn("⚠️ No MONGODB_URI found. Skipping database connection.");
-      return;
-    }
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
-    console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    // process.exit(1);
+const connectDB = async ({ retries = 5, delay = 2000 } = {}) => {
+  global.dbConnected = false;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn("⚠️ No MONGODB_URI found. Skipping database connection.");
+    return;
   }
+
+  // Force Node resolver to use reliable public DNS for SRV lookups
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+    console.log('Using DNS servers:', dns.getServers());
+  } catch (e) {
+    console.warn('Failed to set DNS servers:', e.message);
+  }
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const conn = await mongoose.connect(uri);
+      global.dbConnected = true;
+      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      return;
+    } catch (error) {
+      global.dbConnected = false;
+      console.error(`❌ MongoDB Connection Error (attempt ${attempt}/${retries}): ${error.message}`);
+      if (attempt < retries) {
+        console.log(`Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
+    }
+  }
+  console.error('❌ MongoDB: all connection attempts failed.');
 };
 
 module.exports = connectDB;

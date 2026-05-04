@@ -1,460 +1,717 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+// src/screens/FertilizerScreen.js
+// ─────────────────────────────────────────────────────────────────────────────
+//  Black Pepper AI – Fertilizer Advisor
+//  • Accepts pre-filled soil values from SoilAnalysisScreen / DashboardScreen
+//  • Validates all four inputs (N, P, K, pH) before scoring
+//  • Ranks all 7 fertilizers by match score (API → local fallback)
+//  • Expandable cards with reason, application guide and cautions
+//  • Matches dark forest-green design of the rest of the app
+// ─────────────────────────────────────────────────────────────────────────────
+
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    ActivityIndicator,
-    TouchableOpacity,
-    Dimensions,
-    Animated,
-    RefreshControl,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';
 import axios from 'axios';
-import { API_BASE } from '../config/api';
+import { FERTILIZER_URL } from '../config/api';
 
-const { width } = Dimensions.get('window');
+// ─── Fertilizer catalogue ─────────────────────────────────────────────────────
+const FERTS = [
+  {
+    id: 1,
+    emoji: '🌿',
+    name: 'Urea (46-0-0)',
+    type: 'Nitrogen Booster',
+    color: '#2e7d32',
+    npk: '46-0-0',
+    desc: 'Fast-acting nitrogen source. Rapidly boosts vegetative growth.',
+    app: '50–200 g per plant. Water immediately. Split into 2 doses 6 weeks apart.',
+    best: 'N < 40 mg/kg',
+    caution: 'Do not use if N > 80 mg/kg — causes leaf burn.',
+  },
+  {
+    id: 2,
+    emoji: '⚖️',
+    name: 'NPK 15-15-15',
+    type: 'Balanced Complete',
+    color: '#1565c0',
+    npk: '15-15-15',
+    desc: 'Equal N, P, K. Perfect when all nutrients are moderate.',
+    app: '150–300 g per plant every 3 months.',
+    best: 'All nutrients moderate or slightly deficient',
+    caution: 'Avoid if any individual nutrient is already at optimal.',
+  },
+  {
+    id: 3,
+    emoji: '🌸',
+    name: 'Single Super Phosphate',
+    type: 'Phosphorus Booster',
+    color: '#ad1457',
+    npk: '0-16-0',
+    desc: 'Stimulates root development and berry formation.',
+    app: '30–120 g per plant in topsoil. Apply 4–6 weeks before flowering.',
+    best: 'P < 20 mg/kg',
+    caution: 'Over-application blocks zinc & iron uptake.',
+  },
+  {
+    id: 4,
+    emoji: '🟤',
+    name: 'MOP — Muriate of Potash',
+    type: 'Potassium Booster',
+    color: '#6d4c41',
+    npk: '0-0-60',
+    desc: 'Strengthens berry walls, improves disease resistance.',
+    app: '40–160 g per plant at early flowering.',
+    best: 'K < 60 mg/kg',
+    caution: 'Excess K blocks magnesium uptake.',
+  },
+  {
+    id: 5,
+    emoji: '🪨',
+    name: 'Agricultural Lime',
+    type: 'pH Corrector',
+    color: '#6a1b9a',
+    npk: '0-0-0 + Ca + Mg',
+    desc: 'Raises soil pH. Unlocks nutrients locked by soil acidity.',
+    app: '500 g–1.5 kg per plant. Wait 4–6 weeks before other fertilizers.',
+    best: 'pH < 5.5',
+    caution: 'Do not apply if pH > 7.0.',
+  },
+  {
+    id: 6,
+    emoji: '🌱',
+    name: 'Organic Compost',
+    type: 'Soil Conditioner',
+    color: '#4e342e',
+    npk: '~1-1-1',
+    desc: 'Improves soil structure and microbial activity. Always safe.',
+    app: '2–5 kg per plant around root zone. Every 2 months.',
+    best: 'Any soil condition',
+    caution: 'Ensure fully decomposed before application.',
+  },
+  {
+    id: 7,
+    emoji: '💎',
+    name: 'NPK 12-32-16',
+    type: 'Root & Bloom Blend',
+    color: '#00838f',
+    npk: '12-32-16',
+    desc: 'High-phosphorus formula ideal for transplanting and flowering.',
+    app: '100–200 g per plant at transplanting or early growth.',
+    best: 'Young plants or very low P',
+    caution: 'Single application per season only.',
+  },
+];
 
-const SOIL_API_URL = `${API_BASE}/api/soil-analysis`;
-const FERT_API_URL = `${API_BASE}/api/fertilizer-recommendation`;
-
-// ── Black-pepper-specific optimal ranges & advice ─────────────────────────────
-const FERT_REFERENCE = {
-    Nitrogen: {
-        ranges: { low: 140, high: 280 },
-        unit: 'mg/kg',
-        icon: 'leaf-outline',
-        color: '#e53935',
-        low: { label: 'Deficient', color: '#e53935', advice: 'Apply Urea (46-0-0) at 200–250 kg/ha. Nitrogen is critical for leaf growth and vine development in black pepper.' },
-        optimal: { label: 'Optimal', color: '#2e7d32', advice: 'Nitrogen is at a healthy level. Continue with light split applications every 6 weeks to maintain it.' },
-        high: { label: 'Excess', color: '#e65100', advice: 'Reduce nitrogen inputs. Excess nitrogen promotes soft growth that is prone to fungal disease attacks.' },
-    },
-    Phosphorus: {
-        ranges: { low: 40, high: 120 },
-        unit: 'mg/kg',
-        icon: 'flask-outline',
-        color: '#1e88e5',
-        low: { label: 'Deficient', color: '#e53935', advice: 'Apply Single Super Phosphate (SSP) at 150–200 kg/ha. Phosphorus supports root development and flowering.' },
-        optimal: { label: 'Optimal', color: '#2e7d32', advice: 'Phosphorus is adequate. Continue with existing phosphate management program.' },
-        high: { label: 'Excess', color: '#e65100', advice: 'Halt phosphate applications. High P can lock out zinc and iron uptake in the soil.' },
-    },
-    Potassium: {
-        ranges: { low: 100, high: 250 },
-        unit: 'mg/kg',
-        icon: 'cellular-outline',
-        color: '#f9a825',
-        low: { label: 'Deficient', color: '#e53935', advice: 'Apply Muriate of Potash (MOP) at 150–200 kg/ha. Potassium is vital for berry quality and drought resistance.' },
-        optimal: { label: 'Optimal', color: '#2e7d32', advice: 'Potassium is well-balanced. No corrective action is needed at this time.' },
-        high: { label: 'Excess', color: '#e65100', advice: 'Avoid additional potassium. Excess K can cause nutrient antagonism with magnesium and calcium.' },
-    },
-    pH: {
-        ranges: { low: 5.5, high: 7.0 },
-        unit: '',
-        icon: 'analytics-outline',
-        color: '#6d4c41',
-        low: { label: 'Acidic', color: '#e53935', advice: 'Apply agricultural lime (CaCO₃) at 1–2 t/ha. Black pepper thrives between pH 5.5–7.0.' },
-        optimal: { label: 'Ideal pH', color: '#2e7d32', advice: 'Soil pH is in the ideal range for black pepper (5.5–7.0). No pH correction needed.' },
-        high: { label: 'Alkaline', color: '#e65100', advice: 'Apply elemental sulphur or acidifying fertilizers to gradually lower pH to the optimal range.' },
-    },
-    Moisture: {
-        ranges: { low: 35, high: 70 },
-        unit: '%',
-        icon: 'water-outline',
-        color: '#00acc1',
-        low: { label: 'Dry', color: '#e53935', advice: 'Irrigate immediately. Black pepper requires consistent soil moisture. Drip irrigation is highly recommended.' },
-        optimal: { label: 'Optimal', color: '#2e7d32', advice: 'Soil moisture is ideal. Monitor during dry spells and water when it drops below 40%.' },
-        high: { label: 'Waterlogged', color: '#1e88e5', advice: 'Improve drainage urgently. Waterlogging causes Phytophthora root rot, which is fatal to black pepper.' },
-    },
-    Temperature: {
-        ranges: { low: 18, high: 35 },
-        unit: '°C',
-        icon: 'thermometer-outline',
-        color: '#e65100',
-        low: { label: 'Too Cold', color: '#1e88e5', advice: 'Temperature is below optimal range. Protect vines with organic mulch to retain soil warmth.' },
-        optimal: { label: 'Optimal', color: '#2e7d32', advice: 'Soil temperature is ideal for black pepper root activity and nutrient uptake.' },
-        high: { label: 'Too Hot', color: '#e53935', advice: 'High temperature stress detected. Increase irrigation frequency and apply shade where possible.' },
-    },
+// ─── Validation ───────────────────────────────────────────────────────────────
+const FIELD_RULES = {
+  n: { label: 'Nitrogen', min: 0, max: 1000, unit: 'mg/kg' },
+  p: { label: 'Phosphorus', min: 0, max: 500, unit: 'mg/kg' },
+  k: { label: 'Potassium', min: 0, max: 1000, unit: 'mg/kg' },
+  ph: { label: 'Soil pH', min: 3.0, max: 9.0, unit: '' },
 };
 
-function getSensorStatus(key, value) {
-    const ref = FERT_REFERENCE[key];
-    if (!ref || value === null || value === undefined) return null;
-    if (value < ref.ranges.low) return 'low';
-    if (value > ref.ranges.high) return 'high';
-    return 'optimal';
+/**
+ * Validates a single field.
+ * Returns error string or null.
+ */
+function validateField(key, raw) {
+  const rule = FIELD_RULES[key];
+  if (!raw || raw.trim() === '') return `${rule.label} is required.`;
+  const val = parseFloat(raw);
+  if (isNaN(val)) return `${rule.label} must be a number.`;
+  if (val < rule.min)
+    return `${rule.label} cannot be less than ${rule.min}${rule.unit ? ' ' + rule.unit : ''}.`;
+  if (val > rule.max)
+    return `${rule.label} cannot exceed ${rule.max}${rule.unit ? ' ' + rule.unit : ''}.`;
+  return null;
 }
 
-function buildOverallSummary(sensors) {
-    if (!sensors) return null;
-    const issues = [];
-    Object.entries(FERT_REFERENCE).forEach(([key, ref]) => {
-        const v = sensors[key];
-        const status = getSensorStatus(key, v);
-        if (status === 'low') issues.push(`Low ${key}`);
-        if (status === 'high') issues.push(`Excess ${key}`);
-    });
-    if (issues.length === 0) return { text: 'All nutrients are within optimal range. Your black pepper soil is in excellent condition! 🎉', good: true };
-    return { text: `Action needed: ${issues.join(', ')}. See detailed advice below.`, good: false };
+/**
+ * Validates all four inputs. Returns { valid, errors } where errors is an
+ * object keyed by field name.
+ */
+function validateAll(n, p, k, ph) {
+  const errors = {
+    n: validateField('n', n),
+    p: validateField('p', p),
+    k: validateField('k', k),
+    ph: validateField('ph', ph),
+  };
+  const valid = Object.values(errors).every((e) => e === null);
+  return { valid, errors };
 }
 
-function NutrientRow({ sensorKey, value, index }) {
-    const ref = FERT_REFERENCE[sensorKey];
-    if (!ref) return null;
-    const status = getSensorStatus(sensorKey, value);
-    const info = status ? ref[status] : null;
-    const anim = useRef(new Animated.Value(0)).current;
+// ─── Local scoring (offline fallback) ────────────────────────────────────────
+function localScore(id, n, p, k, ph) {
+  let s = 0;
+  if (id === 1) {
+    s = 20;
+    if (n < 20) s += 55;
+    else if (n < 40) s += 40;
+    else if (n < 60) s += 15;
+    else if (n < 80) s += 2;
+    else s -= 25;
+    if (ph >= 5.5 && ph <= 7) s += 15;
+    else if (ph < 5.5) s -= 10;
+  } else if (id === 2) {
+    s = 25;
+    if (n >= 20 && n <= 70 && p >= 10 && p <= 35 && k >= 30 && k <= 100) s += 40;
+    if (ph >= 5.5 && ph <= 7) s += 20;
+  } else if (id === 3) {
+    s = 18;
+    if (p < 10) s += 58;
+    else if (p < 20) s += 42;
+    else if (p < 30) s += 20;
+    else if (p < 40) s += 5;
+    else s -= 15;
+    if (ph >= 5.5 && ph <= 6.5) s += 14;
+  } else if (id === 4) {
+    s = 18;
+    if (k < 30) s += 58;
+    else if (k < 60) s += 42;
+    else if (k < 90) s += 20;
+    else if (k < 120) s += 5;
+    else s -= 15;
+    if (ph >= 5.5 && ph <= 7) s += 14;
+  } else if (id === 5) {
+    s = 15;
+    if (ph < 4.5) s += 65;
+    else if (ph < 5) s += 55;
+    else if (ph < 5.5) s += 40;
+    else if (ph < 6) s += 15;
+    else if (ph > 7) s -= 25;
+  } else if (id === 6) {
+    s = 50;
+    if (n < 30 || p < 15 || k < 40) s += 15;
+    if (ph < 5.5 || ph > 7.5) s += 10;
+  } else if (id === 7) {
+    s = 15;
+    if (p < 15) s += 38;
+    if (n >= 15 && n <= 50) s += 18;
+    if (k >= 20 && k <= 80) s += 15;
+    if (ph >= 5.5 && ph <= 6.8) s += 14;
+  }
+  return Math.max(0, Math.min(100, s));
+}
 
-    useEffect(() => {
-        Animated.timing(anim, { toValue: 1, duration: 480, delay: index * 90, useNativeDriver: true }).start();
-    }, []);
+const matchLabel = (s) => (s >= 75 ? 'Excellent' : s >= 50 ? 'Good' : s >= 30 ? 'Fair' : 'Low');
+const matchColor = (s) => (s >= 75 ? '#2e7d32' : s >= 50 ? '#e65100' : '#c62828');
 
-    return (
-        <Animated.View style={[
-            styles.nutrientCard,
-            { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] },
-        ]}>
-            {/* Header row */}
-            <View style={styles.nutrientTop}>
-                <View style={styles.nutrientLeft}>
-                    <View style={[styles.nutrientIconWrap, { backgroundColor: `${ref.color}18`, borderColor: `${ref.color}44` }]}>
-                        <Ionicons name={ref.icon} size={18} color={ref.color} />
-                    </View>
-                    <View>
-                        <Text style={styles.nutrientName}>{sensorKey}</Text>
-                        <Text style={styles.nutrientUnit}>{ref.unit ? `Optimal: ${ref.ranges.low}–${ref.ranges.high} ${ref.unit}` : `Optimal: ${ref.ranges.low}–${ref.ranges.high}`}</Text>
-                    </View>
+function buildReason(id, n, p, k, ph) {
+  if (id === 1)
+    return n < 20
+      ? `N critically low (${n} mg/kg). Urea (46% N) will rapidly restore vegetative growth.`
+      : `N at ${n} mg/kg needs a boost. Urea is the fastest nitrogen source available.`;
+  if (id === 2)
+    return `All nutrients moderate. NPK 15-15-15 prevents any single deficiency from developing.`;
+  if (id === 3)
+    return p < 10
+      ? `P critically low (${p} mg/kg). SSP will strengthen roots and improve berry formation.`
+      : `P at ${p} mg/kg is below optimal. SSP improves root health and flowering.`;
+  if (id === 4)
+    return k < 30
+      ? `K very low (${k} mg/kg). MOP rapidly raises potassium, improving berry size and disease resistance.`
+      : `K at ${k} mg/kg needs a boost for optimal berry development.`;
+  if (id === 5)
+    return ph < 5.5
+      ? `Soil is acidic (pH ${ph}). Lime MUST be applied first — acidity locks out all nutrients.`
+      : `pH correction will improve overall nutrient availability across the soil profile.`;
+  if (id === 6)
+    return `Organic compost improves soil structure and helps all other fertilizers work more effectively.`;
+  if (id === 7)
+    return `High-P blend ideal for current soil profile — especially during root establishment.`;
+  return '';
+}
+
+// ─── Fertilizer card component ────────────────────────────────────────────────
+function FertCard({ item, rank, expanded, onToggle }) {
+  const isTop = rank === 0;
+  const sc = item.score ?? 0;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onToggle}
+      style={[s.card, isTop && { borderWidth: 2, borderColor: item.color + '88' }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, ${matchLabel(sc)} match, ${sc}%`}
+      accessibilityHint="Double tap to expand details"
+    >
+      {isTop && (
+        <LinearGradient
+          colors={[item.color + '22', item.color + '08']}
+          style={StyleSheet.absoluteFillObject}
+        />
+      )}
+
+      {/* Tags row */}
+      <View style={s.cardHead}>
+        <View style={[s.rankTag, { backgroundColor: isTop ? item.color : '#eee' }]}>
+          <Text style={[s.rankTxt, { color: isTop ? '#fff' : '#777' }]}>
+            {isTop ? '⭐ BEST' : `#${rank + 1}`}
+          </Text>
+        </View>
+        <View style={[s.matchTag, { backgroundColor: matchColor(sc) + '22' }]}>
+          <Text style={[s.matchTxt, { color: matchColor(sc) }]}>{matchLabel(sc)} Match</Text>
+        </View>
+      </View>
+
+      {/* Name row */}
+      <View style={s.cardMain}>
+        <Text style={s.cEmoji}>{item.emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cName}>{item.name}</Text>
+          <Text style={s.cType}>
+            {item.type} · NPK {item.npk}
+          </Text>
+        </View>
+        <View style={[s.scoreCircle, { borderColor: matchColor(sc) }]}>
+          <Text style={[s.scoreNum, { color: matchColor(sc) }]}>{sc}%</Text>
+        </View>
+      </View>
+
+      {/* Progress bar */}
+      <View style={s.barBg}>
+        <View style={[s.barFill, { width: `${sc}%`, backgroundColor: matchColor(sc) }]} />
+      </View>
+      <Text style={s.tapHint}>{expanded ? '▲ Collapse' : '▼ Tap for reason & details'}</Text>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <View style={s.expanded}>
+          <View style={[s.reasonBox, { borderLeftColor: item.color }]}>
+            <Text style={s.reasonTitle}>💡 Why This Match?</Text>
+            <Text style={s.reasonTxt}>{item.reason}</Text>
+          </View>
+          {[
+            { icon: '📋', label: 'Description', val: item.desc },
+            { icon: '🎯', label: 'Best For', val: item.best },
+            { icon: '📐', label: 'Application', val: item.app },
+            { icon: '⚠️', label: 'Caution', val: item.caution },
+          ].map((row) => (
+            <View key={row.label} style={s.dRow}>
+              <Text style={s.dIcon}>{row.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.dLabel}>{row.label}</Text>
+                <Text style={s.dVal}>{row.val}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ─── Numeric input sub-component ──────────────────────────────────────────────
+function NumericInput({ label, unit, value, onChange, color, hint, error }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={[ni.label, { color }]}>
+        {label}
+        {unit ? ` (${unit})` : ''}
+      </Text>
+      <TextInput
+        style={[ni.input, { borderColor: error ? '#c62828' : color + '60' }]}
+        value={value}
+        onChangeText={onChange}
+        keyboardType="decimal-pad"
+        placeholder={hint}
+        placeholderTextColor="#bbb"
+        returnKeyType="done"
+        accessibilityLabel={label}
+        accessibilityHint={`Enter ${label}${unit ? ' in ' + unit : ''}`}
+      />
+      {!!error && <Text style={ni.errorTxt}>{error}</Text>}
+    </View>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+export default function FertilizerScreen({ navigation }) {
+  const route = useRoute();
+  const params = route.params ?? {};
+  const farmName = params.farmName ?? null;
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [n, setN] = useState(params.nitrogen != null ? String(params.nitrogen) : '');
+  const [p, setP] = useState(params.phosphorus != null ? String(params.phosphorus) : '');
+  const [k, setK] = useState(params.potassium != null ? String(params.potassium) : '');
+  const [ph, setPh] = useState(params.ph != null ? String(params.ph) : '');
+  const [errors, setErrors] = useState({});
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+  const [source, setSource] = useState(null);
+
+  // Auto-analyse when arriving from soil screen with pre-filled data
+  useEffect(() => {
+    if (params.nitrogen != null) analyse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Analyse ────────────────────────────────────────────────────────────────
+  const analyse = useCallback(async () => {
+    const { valid, errors: errs } = validateAll(n, p, k, ph);
+    setErrors(errs);
+
+    if (!valid) {
+      const messages = Object.values(errs).filter(Boolean).join('\n');
+      Alert.alert('Invalid Input', messages, [{ text: 'OK' }]);
+      return;
+    }
+
+    const nv = parseFloat(n);
+    const pv = parseFloat(p);
+    const kv = parseFloat(k);
+    const phv = parseFloat(ph);
+
+    setLoading(true);
+    setExpanded(null);
+    setResults(null);
+
+    let ranked;
+
+    try {
+      const res = await axios.get(`${FERTILIZER_URL}?n=${nv}&p=${pv}&k=${kv}&ph=${phv}`, {
+        timeout: 6000,
+      });
+
+      const apiList = res.data?.all_ranked;
+      if (!Array.isArray(apiList) || apiList.length === 0) {
+        throw new Error('Empty ranked list from API.');
+      }
+
+      ranked = apiList.map((f) => {
+        const local = FERTS.find((x) => x.id === f.id) ?? {};
+        return { ...local, ...f, reason: buildReason(f.id, nv, pv, kv, phv) };
+      });
+      setSource('api');
+    } catch {
+      // Graceful offline fallback
+      ranked = FERTS.map((f) => {
+        const sc = localScore(f.id, nv, pv, kv, phv);
+        return {
+          ...f,
+          score: sc,
+          match_label: matchLabel(sc),
+          reason: buildReason(f.id, nv, pv, kv, phv),
+        };
+      }).sort((a, b) => b.score - a.score);
+      setSource('local');
+    }
+
+    setResults(ranked);
+    setLoading(false);
+  }, [n, p, k, ph]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={s.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
+        <LinearGradient colors={['#050f02', '#1a4a08', '#2d5016']} style={s.header}>
+          <Text style={s.headerTitle}>🌱 Fertilizer Advisor</Text>
+          {!!farmName && <Text style={s.farmTag}>📍 {farmName}</Text>}
+          <Text style={s.headerSub}>
+            Enter soil values to get AI-ranked recommendations with match % and reason
+          </Text>
+        </LinearGradient>
+
+        {/* Input card */}
+        <View style={s.inputCard}>
+          <Text style={s.inputTitle}>🔬 Soil Parameters</Text>
+
+          <View style={s.inputRow}>
+            <NumericInput
+              label="Nitrogen"
+              unit="mg/kg"
+              value={n}
+              onChange={(v) => {
+                setN(v);
+                setErrors((e) => ({ ...e, n: null }));
+              }}
+              color="#2e7d32"
+              hint="e.g. 45"
+              error={errors.n}
+            />
+            <NumericInput
+              label="Phosphorus"
+              unit="mg/kg"
+              value={p}
+              onChange={(v) => {
+                setP(v);
+                setErrors((e) => ({ ...e, p: null }));
+              }}
+              color="#ad1457"
+              hint="e.g. 25"
+              error={errors.p}
+            />
+          </View>
+
+          <View style={s.inputRow}>
+            <NumericInput
+              label="Potassium"
+              unit="mg/kg"
+              value={k}
+              onChange={(v) => {
+                setK(v);
+                setErrors((e) => ({ ...e, k: null }));
+              }}
+              color="#6d4c41"
+              hint="e.g. 80"
+              error={errors.k}
+            />
+            <NumericInput
+              label="Soil pH"
+              unit=""
+              value={ph}
+              onChange={(v) => {
+                setPh(v);
+                setErrors((e) => ({ ...e, ph: null }));
+              }}
+              color="#6a1b9a"
+              hint="e.g. 6.2"
+              error={errors.ph}
+            />
+          </View>
+
+          {/* Reference ranges */}
+          <View style={s.refBox}>
+            <Text style={s.refTitle}>📌 Optimal ranges for Black Pepper</Text>
+            <View style={s.refGrid}>
+              {[
+                ['🟢', 'N', '40–80 mg/kg'],
+                ['🟠', 'P', '20–40 mg/kg'],
+                ['🔴', 'K', '60–120 mg/kg'],
+                ['🟣', 'pH', '5.5–7.0'],
+              ].map(([e, l, v]) => (
+                <View key={l} style={s.refItem}>
+                  <Text style={s.refEmoji}>{e}</Text>
+                  <Text style={s.refLbl}>{l}</Text>
+                  <Text style={s.refVal}>{v}</Text>
                 </View>
-                <View style={styles.nutrientRight}>
-                    <Text style={[styles.nutrientValue, { color: ref.color }]}>
-                        {value !== null && value !== undefined ? `${value}${ref.unit}` : '--'}
-                    </Text>
-                    {info && (
-                        <View style={[styles.statusTag, { backgroundColor: `${info.color}18`, borderColor: `${info.color}44` }]}>
-                            <Text style={[styles.statusTagText, { color: info.color }]}>{info.label}</Text>
-                        </View>
-                    )}
-                </View>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[s.analyseBtn, loading && { opacity: 0.7 }]}
+            onPress={analyse}
+            disabled={loading}
+            activeOpacity={0.85}
+            accessibilityLabel="Rank all 7 fertilizers"
+            accessibilityRole="button"
+          >
+            <LinearGradient
+              colors={['#a3d977', '#7ab84e']}
+              style={s.analyseBtnGrad}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {loading ? (
+                <ActivityIndicator color="#0d2206" />
+              ) : (
+                <Text style={s.analyseBtnTxt}>🔍 Rank All 7 Fertilizers</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Results */}
+        {results && (
+          <View style={s.results}>
+            {/* Source indicator */}
+            <View
+              style={[s.sourcePill, { backgroundColor: source === 'api' ? '#e8f5e9' : '#fff8e1' }]}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: source === 'api' ? '#2e7d32' : '#e65100',
+                }}
+              >
+                {source === 'api'
+                  ? '🟢 Results from Python AI API'
+                  : '🟡 Local scoring — backend offline'}
+              </Text>
             </View>
 
-            {/* Advice */}
-            {info && (
-                <View style={[styles.adviceRow, { borderLeftColor: info.color }]}>
-                    <Ionicons name="information-circle-outline" size={15} color={info.color} style={{ marginTop: 1 }} />
-                    <Text style={styles.adviceText}>{info.advice}</Text>
+            {/* Top recommendation banner */}
+            <LinearGradient
+              colors={[results[0].color + '18', results[0].color + '08']}
+              style={[s.topBanner, { borderColor: results[0].color }]}
+            >
+              <Text style={s.topTag}>⭐ Best Fertilizer for Your Soil</Text>
+              <View style={s.topRow}>
+                <Text style={s.topEmoji}>{results[0].emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.topName, { color: results[0].color }]}>{results[0].name}</Text>
+                  <Text style={s.topScore}>
+                    {results[0].score}% match · {matchLabel(results[0].score)} Match
+                  </Text>
                 </View>
-            )}
-
-            {/* No data */}
-            {!info && (
-                <View style={styles.noDataRow}>
-                    <Text style={styles.noDataText}>Waiting for sensor reading...</Text>
-                </View>
-            )}
-        </Animated.View>
-    );
-}
-
-export default function FertilizerAdvisorScreen({ navigation }) {
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState(null);
-    const [soilData, setSoilData] = useState(null);
-    const [aiRec, setAiRec] = useState(null);
-    const heroAnim = useRef(new Animated.Value(0)).current;
-
-    const fetchAll = useCallback(async (isRefresh = false) => {
-        if (isRefresh) setRefreshing(true);
-        else if (!soilData) setLoading(true);
-        setError(null);
-
-        try {
-            const soilRes = await axios.get(SOIL_API_URL, { timeout: 10000 });
-            setSoilData(soilRes.data);
-
-            // Optional AI recommendation endpoint
-            try {
-                const fertRes = await axios.get(FERT_API_URL, { timeout: 6000 });
-                setAiRec(fertRes.data);
-            } catch {
-                setAiRec(null); // graceful — local reference table still works
-            }
-
-            Animated.timing(heroAnim, { toValue: 1, duration: 650, useNativeDriver: true }).start();
-        } catch (err) {
-            const msg =
-                err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')
-                    ? 'Cannot reach backend. Ensure it is running on port 5000.'
-                    : err.code === 'ECONNABORTED'
-                        ? 'Request timed out. The sensor backend may be busy.'
-                        : `Backend error: ${err.response?.data?.error || err.message}`;
-            setError(msg);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [heroAnim]);
-
-    useEffect(() => { fetchAll(); }, [fetchAll]);
-
-    const s = soilData?.sensors || {};
-
-    const NUTRIENT_KEYS = ['Nitrogen', 'Phosphorus', 'Potassium', 'pH', 'Moisture', 'Temperature'];
-
-    // Overall health score
-    const statuses = NUTRIENT_KEYS.map(k => getSensorStatus(k, s[k]));
-    const optimalCnt = statuses.filter(st => st === 'optimal').length;
-    const totalCnt = statuses.filter(st => st !== null).length;
-    const healthPct = totalCnt > 0 ? Math.round((optimalCnt / totalCnt) * 100) : null;
-    const healthColor = healthPct >= 80 ? '#2e7d32' : healthPct >= 50 ? '#f57c00' : '#c62828';
-
-    const summary = buildOverallSummary(soilData ? s : null);
-
-    return (
-        <ScrollView
-            style={styles.container}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchAll(true)} colors={['#f57c00']} />}
-        >
-            {/* Hero */}
-            <LinearGradient colors={['#bf360c', '#e64a19', '#ff7043']} style={styles.hero}>
-                <View style={styles.heroBg1} />
-                <View style={styles.heroBg2} />
-                <Animated.View style={[styles.heroBody, { opacity: heroAnim }]}>
-                    <View style={styles.heroIconWrap}>
-                        <Text style={{ fontSize: 36 }}>🧪</Text>
-                    </View>
-                    <Text style={styles.heroTitle}>Fertilizer Advisor</Text>
-                    <Text style={styles.heroSub}>
-                        AI-powered nutrient recommendations{'\n'}for Black Pepper farming
-                    </Text>
-
-                    {healthPct !== null && (
-                        <View style={styles.healthScore}>
-                            <Text style={[styles.healthPct, { color: healthColor === '#2e7d32' ? '#fff' : '#fff' }]}>{healthPct}%</Text>
-                            <Text style={styles.healthLabel}>Soil Health Score</Text>
-                            <Text style={styles.healthSub}>{optimalCnt}/{totalCnt} parameters optimal</Text>
-                        </View>
-                    )}
-
-                    {soilData?.timestamp && (
-                        <Text style={styles.tsText}>
-                            Sensor data: {new Date(soilData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </Text>
-                    )}
-                </Animated.View>
+              </View>
+              <Text style={s.topReason}>{results[0].reason}</Text>
             </LinearGradient>
 
-            <View style={styles.body}>
-                {/* Error */}
-                {error && (
-                    <View style={styles.errorBox}>
-                        <Ionicons name="warning-outline" size={16} color="#e53935" />
-                        <Text style={styles.errorText}>{error}</Text>
-                    </View>
-                )}
+            <Text style={s.allTitle}>📊 All 7 Fertilizers Ranked</Text>
+            <Text style={s.allSub}>Tap any card to see reason and application guide</Text>
 
-                {loading && !soilData ? (
-                    <ActivityIndicator size="large" color="#e65100" style={{ marginTop: 60 }} />
-                ) : (
-                    <>
-                        {/* Overall Summary */}
-                        {summary && (
-                            <View style={[styles.summaryCard, { borderLeftColor: summary.good ? '#2e7d32' : '#e65100', backgroundColor: summary.good ? '#e8f5e9' : '#fff3e0' }]}>
-                                <Text style={[styles.summaryText, { color: summary.good ? '#1b5e20' : '#bf360c' }]}>
-                                    {summary.text}
-                                </Text>
-                            </View>
-                        )}
+            {results.map((item, i) => (
+              <FertCard
+                key={item.id}
+                item={item}
+                rank={i}
+                expanded={expanded === item.id}
+                onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
+              />
+            ))}
 
-                        {/* AI Model Recommendation (if backend provides it) */}
-                        {aiRec && (
-                            <View style={styles.aiCard}>
-                                <View style={styles.aiCardTop}>
-                                    <Text style={styles.aiCardIcon}>🤖</Text>
-                                    <Text style={styles.aiCardTitle}>ML Model Recommendation</Text>
-                                </View>
-                                <Text style={styles.aiCardText}>
-                                    {aiRec.recommendation || aiRec.message || aiRec.prediction}
-                                </Text>
-                            </View>
-                        )}
+            <TouchableOpacity
+              style={s.backBtn}
+              onPress={() => navigation.navigate('Dashboard')}
+              activeOpacity={0.85}
+            >
+              <Text style={s.backBtnTxt}>🗺️ View on Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-                        {/* AI consensus from soil analysis */}
-                        {soilData?.ai_analysis && (
-                            <View style={[styles.verdictCard, {
-                                borderLeftColor: soilData.ai_analysis.status === 'Healthy' ? '#43a047' : '#e53935',
-                                backgroundColor: soilData.ai_analysis.status === 'Healthy' ? '#e8f5e9' : '#ffebee',
-                            }]}>
-                                <View style={styles.verdictTop}>
-                                    <Text style={styles.verdictIcon}>{soilData.ai_analysis.status === 'Healthy' ? '✅' : '⚠️'}</Text>
-                                    <Text style={styles.verdictLabel}>Ensemble ML Verdict</Text>
-                                </View>
-                                <Text style={[styles.verdictPred, { color: soilData.ai_analysis.status === 'Healthy' ? '#2e7d32' : '#c62828' }]}>
-                                    {soilData.ai_analysis.prediction || soilData.ai_analysis.consensus}
-                                </Text>
-                            </View>
-                        )}
-
-                        {/* Section header */}
-                        <View style={styles.sectionHead}>
-                            <Text style={styles.sectionTitle}>Nutrient Analysis</Text>
-                            {soilData?.timestamp && (
-                                <Text style={styles.timestamp}>
-                                    {new Date(soilData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
-                            )}
-                        </View>
-
-                        {/* Per-nutrient rows */}
-                        {NUTRIENT_KEYS.map((key, idx) => (
-                            <NutrientRow
-                                key={key}
-                                sensorKey={key}
-                                value={s[key] ?? null}
-                                index={idx}
-                            />
-                        ))}
-
-                        {/* Black Pepper Fertilizer Calendar */}
-                        <View style={styles.guideCard}>
-                            <View style={styles.guideTop}>
-                                <Ionicons name="calendar-outline" size={18} color="#4a148c" />
-                                <Text style={styles.guideTitle}>Black Pepper Fertilizer Calendar</Text>
-                            </View>
-                            {[
-                                { period: 'March – April', icon: '🌱', action: 'Apply 1/3 of annual NPK dose. Use 20:20:20 compound fertilizer at planting season start.' },
-                                { period: 'June – July', icon: '🌿', action: 'Apply second 1/3 dose. Add magnesium sulphate (10 kg/ha) if leaf yellowing is observed.' },
-                                { period: 'October – Nov', icon: '🫑', action: 'Final 1/3 dose. Focus on potassium-rich fertilizer to harden berries before harvest.' },
-                            ].map(g => (
-                                <View key={g.period} style={styles.guideRow}>
-                                    <Text style={styles.guideEmoji}>{g.icon}</Text>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.guidePeriod}>{g.period}</Text>
-                                        <Text style={styles.guideAction}>{g.action}</Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                    </>
-                )}
-
-                {/* Refresh */}
-                <TouchableOpacity style={styles.refreshBtn} onPress={() => fetchAll(false)} activeOpacity={0.8}>
-                    <LinearGradient colors={['#e64a19', '#ff7043']} style={styles.refreshGrad}>
-                        <Ionicons name="refresh-outline" size={18} color="#fff" />
-                        <Text style={styles.refreshText}>{loading ? 'Analyzing...' : 'Refresh Analysis'}</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.soilBtn} onPress={() => navigation.navigate('SoilMonitor')} activeOpacity={0.8}>
-                    <Ionicons name="flask-outline" size={16} color="#2d5016" />
-                    <Text style={styles.soilBtnText}>View Raw Soil Readings</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.hubBtn} onPress={() => navigation.navigate('SoilHub')} activeOpacity={0.8}>
-                    <Ionicons name="grid-outline" size={16} color="#2d5016" />
-                    <Text style={styles.hubBtnText}>Back to Soil Hub</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
-    );
+        <View style={{ height: 30 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f0f4f0' },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f4f8f1' },
+  header: { paddingTop: 30, paddingBottom: 28, paddingHorizontal: 22, alignItems: 'center' },
+  headerTitle: { fontSize: 26, fontWeight: '900', color: '#f0fce8', marginBottom: 4 },
+  farmTag: { fontSize: 12, color: '#a3d977', marginBottom: 4 },
+  headerSub: { fontSize: 12, color: '#7aad55', textAlign: 'center', lineHeight: 18 },
+  inputCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: -14,
+    borderRadius: 22,
+    padding: 20,
+    elevation: 6,
+    shadowColor: '#2d5016',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    marginBottom: 14,
+  },
+  inputTitle: { fontSize: 16, fontWeight: '800', color: '#1a3409', marginBottom: 14 },
+  inputRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  refBox: { backgroundColor: '#f4f8f1', borderRadius: 14, padding: 14, marginBottom: 14 },
+  refTitle: { fontSize: 11, fontWeight: '700', color: '#2d5016', marginBottom: 10 },
+  refGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  refItem: { alignItems: 'center', gap: 3 },
+  refEmoji: { fontSize: 14 },
+  refLbl: { fontSize: 11, fontWeight: '700', color: '#555' },
+  refVal: { fontSize: 10, color: '#888', textAlign: 'center' },
+  analyseBtn: { borderRadius: 14, overflow: 'hidden', elevation: 4 },
+  analyseBtnGrad: { paddingVertical: 16, alignItems: 'center' },
+  analyseBtnTxt: { color: '#050f02', fontSize: 16, fontWeight: '800' },
+  results: { paddingHorizontal: 16 },
+  sourcePill: { borderRadius: 10, padding: 9, alignItems: 'center', marginBottom: 12 },
+  topBanner: { borderRadius: 20, borderWidth: 1.5, padding: 18, marginBottom: 18 },
+  topTag: { fontSize: 11, fontWeight: '700', color: '#888', marginBottom: 10 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  topEmoji: { fontSize: 32 },
+  topName: { fontSize: 19, fontWeight: '900' },
+  topScore: { fontSize: 13, color: '#666', marginTop: 2 },
+  topReason: { fontSize: 13, color: '#444', lineHeight: 19 },
+  allTitle: { fontSize: 17, fontWeight: '800', color: '#1a3409' },
+  allSub: { fontSize: 11, color: '#999', marginTop: 2, marginBottom: 12 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  cardHead: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  rankTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  rankTxt: { fontSize: 11, fontWeight: '700' },
+  matchTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  matchTxt: { fontSize: 11, fontWeight: '700' },
+  cardMain: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  cEmoji: { fontSize: 28 },
+  cName: { fontSize: 14, fontWeight: '700', color: '#1a3409' },
+  cType: { fontSize: 11, color: '#999', marginTop: 2 },
+  scoreCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoreNum: { fontSize: 14, fontWeight: '900' },
+  barBg: { height: 7, backgroundColor: '#eee', borderRadius: 4, marginBottom: 5 },
+  barFill: { height: 7, borderRadius: 4 },
+  tapHint: { fontSize: 11, color: '#ccc', textAlign: 'center' },
+  expanded: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  reasonBox: {
+    borderLeftWidth: 3,
+    padding: 12,
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  reasonTitle: { fontSize: 13, fontWeight: '700', color: '#333', marginBottom: 5 },
+  reasonTxt: { fontSize: 13, color: '#444', lineHeight: 19 },
+  dRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'flex-start' },
+  dIcon: { fontSize: 14, marginTop: 2 },
+  dLabel: { fontSize: 11, fontWeight: '700', color: '#888', marginBottom: 2 },
+  dVal: { fontSize: 13, color: '#333', lineHeight: 18 },
+  backBtn: {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#c8e6a0',
+    padding: 13,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginBottom: 12,
+    marginTop: 6,
+  },
+  backBtnTxt: { color: '#2d5016', fontSize: 14, fontWeight: '700' },
+});
 
-    hero: { paddingTop: 40, paddingBottom: 36, paddingHorizontal: 24, overflow: 'hidden' },
-    heroBg1: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,255,255,0.06)', top: -70, right: -50 },
-    heroBg2: { position: 'absolute', width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.05)', bottom: -40, left: -30 },
-    heroBody: { alignItems: 'center' },
-    heroIconWrap: {
-        width: 72, height: 72, borderRadius: 22,
-        backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
-        justifyContent: 'center', alignItems: 'center', marginBottom: 14,
-    },
-    heroTitle: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 8 },
-    heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 18 },
-    healthScore: {
-        backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 16,
-        paddingHorizontal: 28, paddingVertical: 14, alignItems: 'center',
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', marginBottom: 10,
-    },
-    healthPct: { fontSize: 38, fontWeight: '900', color: '#fff' },
-    healthLabel: { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '700' },
-    healthSub: { fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-    tsText: { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
-
-    body: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 },
-
-    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ffebee', borderRadius: 10, padding: 12, marginBottom: 14 },
-    errorText: { color: '#e53935', fontSize: 13, flex: 1 },
-
-    summaryCard: { borderRadius: 14, padding: 14, marginBottom: 16, borderLeftWidth: 5 },
-    summaryText: { fontSize: 14, lineHeight: 21, fontWeight: '600' },
-
-    aiCard: { backgroundColor: '#ede7f6', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 4, borderLeftColor: '#7b1fa2' },
-    aiCardTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-    aiCardIcon: { fontSize: 18 },
-    aiCardTitle: { fontSize: 13, fontWeight: '800', color: '#4a148c' },
-    aiCardText: { fontSize: 13, color: '#311b92', lineHeight: 19 },
-
-    verdictCard: { borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 4 },
-    verdictTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-    verdictIcon: { fontSize: 18 },
-    verdictLabel: { fontSize: 13, fontWeight: '800', color: '#333' },
-    verdictPred: { fontSize: 20, fontWeight: '900', textAlign: 'center' },
-
-    sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1a3c0d' },
-    timestamp: { fontSize: 11, color: '#6a9e5a', fontWeight: '600' },
-
-    /* Nutrient card */
-    nutrientCard: {
-        backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 12,
-        elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5,
-    },
-    nutrientTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-    nutrientLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-    nutrientIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5 },
-    nutrientName: { fontSize: 14, fontWeight: '800', color: '#2d3e2d' },
-    nutrientUnit: { fontSize: 10, color: '#888', marginTop: 1 },
-    nutrientRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    nutrientValue: { fontSize: 18, fontWeight: '900', color: '#333' },
-    statusTag: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-    statusTagText: { fontSize: 10, fontWeight: '800' },
-    adviceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderLeftWidth: 3, paddingLeft: 10, paddingVertical: 4 },
-    adviceText: { fontSize: 12.5, color: '#444', lineHeight: 18, flex: 1 },
-    noDataRow: { padding: 8 },
-    noDataText: { fontSize: 12, color: '#aaa', fontStyle: 'italic' },
-
-    /* Guide card */
-    guideCard: { backgroundColor: '#f3e5f5', borderRadius: 16, padding: 16, marginBottom: 18, borderLeftWidth: 5, borderLeftColor: '#7b1fa2' },
-    guideTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-    guideTitle: { fontSize: 14, fontWeight: '800', color: '#4a148c' },
-    guideRow: { flexDirection: 'row', gap: 10, marginBottom: 12, alignItems: 'flex-start' },
-    guideEmoji: { fontSize: 20, marginTop: 2 },
-    guidePeriod: { fontSize: 12, fontWeight: '800', color: '#4a148c', marginBottom: 3 },
-    guideAction: { fontSize: 12.5, color: '#311b92', lineHeight: 17 },
-
-    /* Buttons */
-    refreshBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 12 },
-    refreshGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-    refreshText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-
-    soilBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        paddingVertical: 13, backgroundColor: '#e8f5e9',
-        borderRadius: 14, borderWidth: 1, borderColor: '#c8e6c9', marginBottom: 10,
-    },
-    soilBtnText: { color: '#2d5016', fontSize: 14, fontWeight: '700' },
-
-    hubBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        paddingVertical: 13, backgroundColor: '#fff',
-        borderRadius: 14, borderWidth: 1, borderColor: '#ddd',
-    },
-    hubBtnText: { color: '#2d5016', fontSize: 14, fontWeight: '700' },
+const ni = StyleSheet.create({
+  label: { fontSize: 11, fontWeight: '700', marginBottom: 6 },
+  input: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 15,
+    color: '#222',
+    backgroundColor: '#fafafa',
+  },
+  errorTxt: { fontSize: 10, color: '#c62828', marginTop: 4 },
 });
