@@ -29,8 +29,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Backend is running',
-    database: 'MongoDB Atlas Connected',
-    storage: 'Cloudinary Connected',
+    database: global.dbConnected ? 'MongoDB Connected' : 'MongoDB Not Connected',
+    storage: (process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET && process.env.CLOUDINARY_CLOUD_NAME) ? 'Cloudinary Configured' : 'Cloudinary Not Configured',
     routes: [
       'GET  /api/soil-analysis',
       'GET  /api/soil-analysis/history',
