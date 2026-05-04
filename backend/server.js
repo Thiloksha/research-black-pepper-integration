@@ -48,6 +48,18 @@ app.use('/api/soil-analysis', require('./routes/soilRoutes'));
 app.use('/api/predict-image', require('./routes/imageRoutes'));
 app.use('/api/variety-predict', require('./routes/varietyRoutes'));
 
+// Mock Weather Route
+app.get('/api/weather', (req, res) => {
+  res.json({
+    city: "Farm Location",
+    weather: "light rain",
+    temperature: 28.5,
+    feels_like: 32.1,
+    humidity: 78,
+    wind: 4.2
+  });
+});
+
 //  Global Error Handler 
 const multer = require('multer');
 

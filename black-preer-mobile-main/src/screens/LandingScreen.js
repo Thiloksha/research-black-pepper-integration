@@ -45,14 +45,14 @@ const MODULES = [
     navigate: 'Home',
   },
   {
-    key: 'fertilizer',
+    key: 'soil',
     icon: 'flask',
-    label: 'Recommend Fertilizer',
-    description: 'AI-powered soil analysis for precision nutrient recommendations',
+    label: 'Soil Monitoring',
+    description: 'Live IoT soil data, weather insights & AI fertilizer recommendations',
     accent: '#6b4fa0',
     lightAccent: '#f0eaf8',
     borderAccent: '#c9b8e8',
-    navigate: 'SoilAnalysis',
+    navigate: 'SoilHub',
   },
 ];
 

@@ -11,7 +11,10 @@ import LandingScreen from '../screens/LandingScreen';
 import AnalysisScreen from '../screens/AnalysisScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
-import SoilAnalysisScreen from '../screens/SoilAnalysisScreen';
+import SoilHubScreen from '../screens/SoilHubScreen';
+import SoilMonitorScreen from '../screens/SoilAnalysisScreen';
+import WeatherMonitorScreen from '../screens/WeatherMonitorScreen';
+import FertilizerAdvisorScreen from '../screens/FertilizerAdvisorScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import DiseaseIdentificationScreen from '../screens/DiseaseIdentificationScreen';
 import DiseaseUploadScreen from '../screens/DiseaseUploadScreen';
@@ -33,7 +36,10 @@ const linking = {
       SignUp: 'signup',
       Home: 'home',
       Analysis: 'analysis',
-      SoilAnalysis: 'soil-analysis',
+      SoilHub: 'soil-hub',
+      WeatherMonitor: 'weather-monitor',
+      SoilMonitor: 'soil-monitor',
+      FertilizerAdvisor: 'fertilizer-advisor',
       Dashboard: 'dashboard',
       DiseaseIdentification: 'disease-identification',
       DiseaseUpload: 'disease-upload',
@@ -52,7 +58,10 @@ const SCREEN_META = {
   SignUp: { icon: 'person-add-outline' },
   Home: { icon: 'heart-circle-outline' },
   Analysis: { icon: 'stats-chart-outline' },
-  SoilAnalysis: { icon: 'flask-outline' },
+  SoilHub: { icon: 'earth-outline' },
+  WeatherMonitor: { icon: 'partly-sunny-outline' },
+  SoilMonitor: { icon: 'flask-outline' },
+  FertilizerAdvisor: { icon: 'leaf-outline' },
   Dashboard: { icon: 'grid-outline' },
   DiseaseIdentification: { icon: 'bug-outline' },
   DiseaseUpload: { icon: 'cloud-upload-outline' },
@@ -199,8 +208,26 @@ console.log('initialRoute:', currentUser ? 'MainTabs' : 'SignIn');
         />
 
         <Stack.Screen
-          name="SoilAnalysis"
-          component={SoilAnalysisScreen}
+          name="SoilHub"
+          component={SoilHubScreen}
+          options={{ title: 'Soil Intelligence' }}
+        />
+
+        <Stack.Screen
+          name="WeatherMonitor"
+          component={WeatherMonitorScreen}
+          options={{ title: 'Weather Monitor' }}
+        />
+
+        <Stack.Screen
+          name="SoilMonitor"
+          component={SoilMonitorScreen}
+          options={{ title: 'Soil Monitor' }}
+        />
+
+        <Stack.Screen
+          name="FertilizerAdvisor"
+          component={FertilizerAdvisorScreen}
           options={{ title: 'Fertilizer Advisor' }}
         />
 
