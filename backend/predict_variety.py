@@ -49,7 +49,7 @@ def prepare_image(img_path):
 
     x = np.array(img, dtype=np.float32)
 
-    # IMPORTANT: no preprocess_input (model already has it)
+    # no preprocess_input (model already has it)
     x = np.expand_dims(x, axis=0)
     return x
 
